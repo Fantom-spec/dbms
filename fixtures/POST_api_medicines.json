@@ -1,0 +1,44 @@
+{
+  "ok": true,
+  "message": "Medicine created. Medicine ID 513",
+  "data": {
+    "medicine_id": 513
+  },
+  "inspector": {
+    "operation": "Create medicine",
+    "component": {
+      "name": "services.create_medicine",
+      "type": "procedure",
+      "oracle_equivalent": "N/A"
+    },
+    "tables": [
+      "medicine"
+    ],
+    "functions_used": [],
+    "triggers_fired": [],
+    "sql": [
+      "BEGIN IMMEDIATE",
+      "INSERT INTO medicine (...) VALUES (...)",
+      "COMMIT"
+    ],
+    "before": {
+      "medicine": []
+    },
+    "after": {
+      "medicine": [
+        {
+          "medicine_id": 513
+        }
+      ]
+    },
+    "viva": {
+      "operation": "Create new medicine",
+      "tables": "medicine (insert)",
+      "component": "Service create_medicine",
+      "effect": "One new medicine row inserted",
+      "result": "Medicine 513 created"
+    },
+    "elapsed_ms": 2.0
+  },
+  "error": null
+}

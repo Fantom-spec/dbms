@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "message": "Schema functions retrieved",
+  "data": [
+    {
+      "name": "fn_days_stayed",
+      "signature": "fn_days_stayed(visit_id) -> INTEGER",
+      "purpose": "0 if never admitted; else date difference between admit and discharge (or now if not discharged), minimum 1",
+      "oracle_equivalent": "fn_days_stayed (PL/SQL function)"
+    },
+    {
+      "name": "fn_medicine_cost",
+      "signature": "fn_medicine_cost(visit_id) -> NUMERIC",
+      "purpose": "SUM(quantity * price_per_unit) for the visit, 0 if none",
+      "oracle_equivalent": "fn_medicine_cost (PL/SQL function)"
+    },
+    {
+      "name": "fn_triage_label",
+      "signature": "fn_triage_label(level) -> TEXT",
+      "purpose": "1 Critical, 2 Very urgent, 3 Urgent, 4 Minor, else 'Not triaged'",
+      "oracle_equivalent": "fn_triage_label (DETERMINISTIC PL/SQL function)"
+    }
+  ],
+  "inspector": null,
+  "error": null
+}

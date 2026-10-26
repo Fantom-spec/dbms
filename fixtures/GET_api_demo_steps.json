@@ -1,0 +1,288 @@
+{
+  "ok": true,
+  "message": "Demo steps retrieved",
+  "data": [
+    {
+      "transaction": "T1",
+      "title": "Register patient and book appointment",
+      "goal": "Register a new patient and book an appointment with a specific doctor at a specific time",
+      "steps": [
+        {
+          "id": "T1.1",
+          "title": "Register patient Sanjay Rao",
+          "narration": "Receptionist registers new patient Sanjay Rao with phone 9876500113",
+          "role": "Receptionist",
+          "expect": [
+            "Patient 113 created",
+            "Audit row 13: 'New patient registered' by RECEPTION1"
+          ]
+        },
+        {
+          "id": "T1.2",
+          "title": "Book appointment with Dr. Priya Nair",
+          "narration": "Book patient 113 with Dr. Priya Nair (202) for tomorrow 10:00 AM",
+          "role": "Receptionist",
+          "expect": [
+            "Visit 421 created with status Scheduled",
+            "Audit row 14: 'New Appointment visit for patient 113' by RECEPTION1"
+          ]
+        },
+        {
+          "id": "T1.3",
+          "title": "Attempt double-booking same slot",
+          "narration": "Try to book patient 101 with doctor 202 at the same slot (should fail)",
+          "role": "Receptionist",
+          "expect": [
+            "Error SLOT_TAKEN",
+            "No visit inserted",
+            "Partial unique index uq_doctor_slot blocks it"
+          ]
+        }
+      ]
+    },
+    {
+      "transaction": "T2",
+      "title": "Emergency arrival and triage",
+      "goal": "Register an emergency case and verify triage priority queue",
+      "steps": [
+        {
+          "id": "T2.1",
+          "title": "Show emergency queue (cursor)",
+          "narration": "Display current emergency waiting queue using cursor-style output",
+          "role": "Triage Nurse",
+          "expect": [
+            "Queue shows visits 418 (T1), 416 (T2), 417 (T4) in priority order",
+            "Console lines show formatted output with fn_triage_label"
+          ]
+        },
+        {
+          "id": "T2.2",
+          "title": "Register emergency for patient 109",
+          "narration": "Register emergency: patient 109 (Vivek Joshi), 'Chest pain', triage 1",
+          "role": "Triage Nurse",
+          "expect": [
+            "Visit 422 created with status Waiting",
+            "Assigned to Dr. Arvind Menon (203) - tie on 2 active, lowest id",
+            "Audit row 15: 'New Emergency visit for patient 109' by TRIAGE_NURSE"
+          ]
+        },
+        {
+          "id": "T2.3",
+          "title": "Attempt invalid triage level 7",
+          "narration": "Try to register emergency with triage level 7 (should fail)",
+          "role": "Triage Nurse",
+          "expect": [
+            "Error BAD_TRIAGE",
+            "CHECK constraint chk_visit_range blocks it"
+          ]
+        },
+        {
+          "id": "T2.4",
+          "title": "Show updated queue",
+          "narration": "Display queue again - new critical case should be at top",
+          "role": "Triage Nurse",
+          "expect": [
+            "Visit 422 (T1) appears ahead of 416 (T2) and 417 (T4)",
+            "fn_triage_label shows 'Critical' for triage 1"
+          ]
+        }
+      ]
+    },
+    {
+      "transaction": "T3",
+      "title": "Consultation and prescription",
+      "goal": "Start treatment and add prescriptions, verify stock triggers",
+      "steps": [
+        {
+          "id": "T3.1",
+          "title": "Start treatment on visit 422",
+          "narration": "Change visit 422 status to Under Treatment",
+          "role": "Doctor",
+          "expect": [
+            "Visit 422 status -> Under Treatment",
+            "Doctor 203 availability -> Busy (via trg_doctor_status)",
+            "Audit row 16: 'Status Waiting -> Under Treatment' by DR_AMENON"
+          ]
+        },
+        {
+          "id": "T3.2",
+          "title": "Prescribe Aspirin 75mg qty 10",
+          "narration": "Add prescription for Aspirin 75mg (506), quantity 10",
+          "role": "Doctor",
+          "expect": [
+            "Prescription 623 created",
+            "Aspirin stock 550 -> 540 (via trg_reduce_stock)",
+            "No audit row for prescription (only visit/bill/patient)"
+          ]
+        },
+        {
+          "id": "T3.3",
+          "title": "Attempt ORS Sachet qty 2 (insufficient stock)",
+          "narration": "Try to prescribe ORS Sachet (512) qty 2 when stock is 0",
+          "role": "Doctor",
+          "expect": [
+            "Error INSUFFICIENT_STOCK",
+            "Trigger trg_reduce_stock__insert aborts with 'available 0, requested 2'",
+            "Transaction rolled back, stock unchanged"
+          ]
+        }
+      ]
+    },
+    {
+      "transaction": "T4",
+      "title": "Admission and bed allotment",
+      "goal": "Allot ICU bed and verify bed constraints",
+      "steps": [
+        {
+          "id": "T4.1",
+          "title": "Show free ICU beds",
+          "narration": "Display free beds in ICU ward",
+          "role": "Doctor",
+          "expect": [
+            "Only bed 307 shows as Free in ICU"
+          ]
+        },
+        {
+          "id": "T4.2",
+          "title": "Allot ICU bed to visit 422",
+          "narration": "Allot ICU bed to the emergency visit 422",
+          "role": "Doctor",
+          "expect": [
+            "Bed 307 status -> Occupied",
+            "Visit 422 status -> Admitted with admit_time",
+            "Doctor 203 availability -> Available (left Under Treatment)",
+            "Audit row 17: 'Status Under Treatment -> Admitted' by DR_AMENON"
+          ]
+        },
+        {
+          "id": "T4.3",
+          "title": "Attempt allot ICU bed to visit 416",
+          "narration": "Try to allot ICU bed to another waiting emergency (should fail)",
+          "role": "Doctor",
+          "expect": [
+            "Error NO_FREE_BED",
+            "No free ICU beds remaining"
+          ]
+        },
+        {
+          "id": "T4.4",
+          "title": "Sandbox: force bed 308 onto visit 416",
+          "narration": "Attempt to directly set visit 416 to Admitted with bed 308 (should be blocked)",
+          "role": "Doctor",
+          "expect": [
+            "Error blocked by uq_active_bed partial unique index",
+            "Bed 308 already occupied by visit 414"
+          ]
+        }
+      ]
+    },
+    {
+      "transaction": "T5",
+      "title": "Discharge, billing and payment",
+      "goal": "Discharge patient, generate bill, record payment",
+      "steps": [
+        {
+          "id": "T5.1",
+          "title": "Discharge visit 422",
+          "narration": "Discharge the patient from visit 422",
+          "role": "Billing",
+          "expect": [
+            "Visit 422 status -> Discharged with discharge_time",
+            "Bed 307 status -> Cleaning",
+            "Audit row 18: 'Status Admitted -> Discharged' by BILLING1"
+          ]
+        },
+        {
+          "id": "T5.2",
+          "title": "Show fn_days_stayed and fn_medicine_cost",
+          "narration": "Call functions to verify bill components",
+          "role": "Billing",
+          "expect": [
+            "fn_days_stayed(422) = 1",
+            "fn_medicine_cost(422) = 15 (Aspirin 75mg x10 x1.5)"
+          ]
+        },
+        {
+          "id": "T5.3",
+          "title": "Generate bill for visit 422",
+          "narration": "Generate bill: consultation 1000 + medicine 15 + bed 5000 = 6015",
+          "role": "Billing",
+          "expect": [
+            "Bill 712 created with total 6015, status Pending",
+            "Audit row 19: 'Bill generated: total 6015 (Pending)' by BILLING1"
+          ]
+        },
+        {
+          "id": "T5.4",
+          "title": "Pay bill by UPI",
+          "narration": "Record payment for bill 712 via UPI",
+          "role": "Billing",
+          "expect": [
+            "Bill 712 status -> Paid, payment_mode = UPI",
+            "Audit row 20: 'Payment status Pending -> Paid' by BILLING1"
+          ]
+        },
+        {
+          "id": "T5.5",
+          "title": "Show pending bills (cursor)",
+          "narration": "Display pending bills using cursor output",
+          "role": "Billing",
+          "expect": [
+            "4 seeded pending bills still shown (706, 708, 710, 711)",
+            "Console lines show formatted output with totals"
+          ]
+        }
+      ]
+    },
+    {
+      "transaction": "T6",
+      "title": "Audit and integrity",
+      "goal": "Verify audit trail and integrity constraints",
+      "steps": [
+        {
+          "id": "T6.1",
+          "title": "Show audit trail",
+          "narration": "Display audit log rows 13-20 from this demo run",
+          "role": "Admin",
+          "expect": [
+            "Rows 13-20 show with changed_by: RECEPTION1, TRIAGE_NURSE, DR_AMENON, BILLING1"
+          ]
+        },
+        {
+          "id": "T6.2",
+          "title": "Attempt to UPDATE audit row",
+          "narration": "Try to modify an audit_log entry (should be blocked)",
+          "role": "Admin",
+          "expect": [
+            "Error AUDIT_PROTECTED",
+            "Trigger trg_protect_audit blocks UPDATE/DELETE"
+          ]
+        },
+        {
+          "id": "T6.3",
+          "title": "Attempt to delete patient 101",
+          "narration": "Try to delete patient 101 who has visits (should be blocked)",
+          "role": "Admin",
+          "expect": [
+            "Error FK_VIOLATION",
+            "Foreign key fk_visit_patient blocks deletion"
+          ]
+        },
+        {
+          "id": "T6.4",
+          "title": "Rollback demo: Paracetamol ok, ORS fails",
+          "narration": "In one transaction: prescribe Paracetamol (501) x3 (ok), then ORS (512) x5 (fails)",
+          "role": "Admin",
+          "expect": [
+            "Whole transaction rolled back",
+            "Paracetamol stock still 480",
+            "ORS stock still 0",
+            "Demonstrates atomic transactions"
+          ]
+        }
+      ]
+    }
+  ],
+  "inspector": null,
+  "error": null
+}

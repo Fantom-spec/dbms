@@ -1,0 +1,83 @@
+{
+  "ok": true,
+  "message": "Visit summary retrieved",
+  "data": {
+    "visit": {
+      "visit_id": 407,
+      "patient_id": 103,
+      "doctor_id": 203,
+      "bed_id": 307,
+      "visit_type": "Emergency",
+      "visit_datetime": "2026-10-02 22:15:00",
+      "complaint": "Road accident - head injury",
+      "triage_level": 1,
+      "visit_status": "Discharged",
+      "admit_time": "2026-10-02 22:40:00",
+      "discharge_time": "2026-10-05 11:00:00"
+    },
+    "patient": {
+      "patient_id": 103,
+      "patient_name": "Rahul Verma",
+      "gender": "Male",
+      "date_of_birth": "1990-11-05",
+      "phone": "9876500103",
+      "address": "7 Lake View, Hyderabad",
+      "blood_group": "A+",
+      "emergency_contact": "9876511103",
+      "registration_date": "2026-02-02"
+    },
+    "doctor": {
+      "doctor_id": 203,
+      "doctor_name": "Dr. Arvind Menon",
+      "department": "Emergency",
+      "specialization": "Emergency Physician",
+      "phone": "9840011103",
+      "consultation_fee": 1000,
+      "shift": "Night",
+      "availability_status": "Available"
+    },
+    "bed": {
+      "bed_id": 307,
+      "ward_type": "ICU",
+      "bed_status": "Occupied",
+      "daily_charge": 5000
+    },
+    "prescriptions": [
+      {
+        "prescription_id": 610,
+        "visit_id": 407,
+        "medicine_id": 502,
+        "dosage": "1-0-1",
+        "duration_days": 7,
+        "quantity": 14,
+        "medicine_name": "Amoxicillin 500mg",
+        "price_per_unit": 8.5
+      },
+      {
+        "prescription_id": 611,
+        "visit_id": 407,
+        "medicine_id": 505,
+        "dosage": "1-0-0",
+        "duration_days": 7,
+        "quantity": 7,
+        "medicine_name": "Pantoprazole 40mg",
+        "price_per_unit": 6.0
+      }
+    ],
+    "medicine_cost": 161.0,
+    "days_stayed": 3,
+    "bill": {
+      "bill_id": 707,
+      "visit_id": 407,
+      "consultation_charge": 1000,
+      "medicine_charge": 161,
+      "bed_charge": 15000,
+      "total_amount": 16161,
+      "payment_mode": "Card",
+      "payment_status": "Paid",
+      "bill_date": "2026-10-05"
+    }
+  },
+  "inspector": null,
+  "error": null
+}

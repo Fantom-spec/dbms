@@ -1,0 +1,26 @@
+{
+  "ok": false,
+  "message": "Insufficient stock for ORS Sachet: available 0, requested 2",
+  "error": {"kind": "business_rule", "code": "INSUFFICIENT_STOCK", "constraint": "trg_reduce_stock__insert", "detail": "Insufficient stock for ORS Sachet: available 0, requested 2"},
+  "data": null,
+  "inspector": {
+    "operation": "Add prescription (insufficient stock)",
+    "component": {"name": "services.add_prescription", "type": "procedure", "oracle_equivalent": "N/A"},
+    "tables": ["prescription", "medicine"],
+    "functions_used": [],
+    "triggers_fired": [
+      {"name": "trg_reduce_stock", "event": "BEFORE INSERT", "effect": "RAISE(ABORT, 'Insufficient stock for ORS Sachet: available 0, requested 2')"}
+    ],
+    "sql": ["BEGIN IMMEDIATE", "INSERT INTO prescription (...) VALUES (...)", "ROLLBACK"],
+    "before": {},
+    "after": {},
+    "viva": {
+      "operation": "Attempt to prescribe ORS Sachet (512) qty 2 when stock is 0",
+      "tables": "prescription (insert attempted), medicine (stock check via trigger)",
+      "component": "Trigger trg_reduce_stock__insert",
+      "effect": "Trigger aborts insert; transaction rolled back; stock unchanged",
+      "result": "Blocked by trigger"
+    },
+    "elapsed_ms": 1.5
+  }
+}

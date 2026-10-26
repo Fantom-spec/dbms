@@ -1,0 +1,38 @@
+{
+  "ok": true,
+  "message": "Violation test executed (rolled back)",
+  "data": {
+    "blocked": true,
+    "error": "UNIQUE constraint failed: patient.phone",
+    "attempted_sql": "INSERT INTO patient (patient_name, phone, gender, date_of_birth) VALUES ('Test', '9876500101', 'Male', '2000-01-01')"
+  },
+  "inspector": {
+    "operation": "Violation test v01",
+    "component": {
+      "name": "uq_pat_phone",
+      "type": "constraint",
+      "oracle_equivalent": "UNIQUE constraint"
+    },
+    "tables": [
+      "patient"
+    ],
+    "functions_used": [],
+    "triggers_fired": [],
+    "sql": [
+      "BEGIN",
+      "INSERT INTO patient (...) VALUES (...)",
+      "ROLLBACK"
+    ],
+    "before": {},
+    "after": {},
+    "viva": {
+      "operation": "Attempt to insert patient with duplicate phone",
+      "tables": "patient (insert attempted)",
+      "component": "UNIQUE constraint uq_pat_phone",
+      "effect": "Insert rejected; transaction rolled back",
+      "result": "Blocked by constraint"
+    },
+    "elapsed_ms": 1.0
+  },
+  "error": null
+}

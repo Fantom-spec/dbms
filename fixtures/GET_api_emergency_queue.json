@@ -1,0 +1,76 @@
+{
+  "ok": true,
+  "message": "Emergency queue retrieved",
+  "data": {
+    "rows": [
+      {
+        "visit_id": 418,
+        "patient_name": "Divya Krishnan",
+        "triage_level": 1,
+        "complaint": "Severe allergic reaction",
+        "doctor_name": "Dr. Arvind Menon",
+        "visit_datetime": "2026-10-12 20:50:00"
+      },
+      {
+        "visit_id": 416,
+        "patient_name": "Pooja Menon",
+        "triage_level": 2,
+        "complaint": "High fever and vomiting",
+        "doctor_name": "Dr. Arvind Menon",
+        "visit_datetime": "2026-10-12 20:25:00"
+      },
+      {
+        "visit_id": 417,
+        "patient_name": "Rahul Verma",
+        "triage_level": 4,
+        "complaint": "Minor ankle sprain",
+        "doctor_name": "Dr. Vikram Singh",
+        "visit_datetime": "2026-10-12 20:40:00"
+      }
+    ],
+    "console_lines": [
+      "EMERGENCY WAITING LIST (highest priority first)",
+      "------------------------------------------------------",
+      "1. [T1] Critical    | Visit 418 | Divya Krishnan | arrived 20:50",
+      "      Complaint: Severe allergic reaction | Dr. Arvind Menon",
+      "2. [T2] Very urgent | Visit 416 | Pooja Menon | arrived 20:25",
+      "      Complaint: High fever and vomiting | Dr. Arvind Menon",
+      "3. [T4] Minor       | Visit 417 | Rahul Verma | arrived 20:40",
+      "      Complaint: Minor ankle sprain | Dr. Vikram Singh"
+    ]
+  },
+  "inspector": {
+    "operation": "Emergency queue cursor",
+    "component": {
+      "name": "queries.emergency_queue_cursor",
+      "type": "cursor",
+      "oracle_equivalent": "sp_emergency_queue"
+    },
+    "tables": [
+      "visit",
+      "patient",
+      "doctor"
+    ],
+    "functions_used": [
+      {
+        "name": "fn_triage_label",
+        "purpose": "Convert triage level to label"
+      }
+    ],
+    "triggers_fired": [],
+    "sql": [
+      "SELECT v.visit_id, p.patient_name, v.triage_level, v.complaint, d.doctor_name, v.visit_datetime FROM visit v JOIN patient p ON p.patient_id = v.patient_id JOIN doctor d ON d.doctor_id = v.doctor_id WHERE v.visit_type = 'Emergency' AND v.visit_status = 'Waiting' ORDER BY v.triage_level, v.visit_datetime"
+    ],
+    "before": {},
+    "after": {},
+    "viva": {
+      "operation": "Display emergency waiting queue using explicit cursor",
+      "tables": "visit, patient, doctor (SELECT only)",
+      "component": "Cursor query with fn_triage_label function",
+      "effect": "Three waiting emergencies listed by triage then arrival time",
+      "result": "Queue displayed with 3 patients"
+    },
+    "elapsed_ms": 2.5
+  },
+  "error": null
+}

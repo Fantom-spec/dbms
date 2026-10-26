@@ -1,0 +1,92 @@
+{
+  "ok": true,
+  "message": "Medicines retrieved",
+  "data": [
+    {
+      "medicine_id": 501,
+      "medicine_name": "Paracetamol 500mg",
+      "manufacturer": "Cipla",
+      "price_per_unit": 2.0,
+      "stock_quantity": 480
+    },
+    {
+      "medicine_id": 502,
+      "medicine_name": "Amoxicillin 500mg",
+      "manufacturer": "Sun Pharma",
+      "price_per_unit": 8.5,
+      "stock_quantity": 276
+    },
+    {
+      "medicine_id": 503,
+      "medicine_name": "Cetirizine 10mg",
+      "manufacturer": "Dr. Reddys",
+      "price_per_unit": 3.0,
+      "stock_quantity": 388
+    },
+    {
+      "medicine_id": 504,
+      "medicine_name": "Ibuprofen 400mg",
+      "manufacturer": "Abbott",
+      "price_per_unit": 4.5,
+      "stock_quantity": 311
+    },
+    {
+      "medicine_id": 505,
+      "medicine_name": "Pantoprazole 40mg",
+      "manufacturer": "Cipla",
+      "price_per_unit": 6.0,
+      "stock_quantity": 238
+    },
+    {
+      "medicine_id": 506,
+      "medicine_name": "Aspirin 75mg",
+      "manufacturer": "Bayer",
+      "price_per_unit": 1.5,
+      "stock_quantity": 550
+    },
+    {
+      "medicine_id": 507,
+      "medicine_name": "Atorvastatin 10mg",
+      "manufacturer": "Lupin",
+      "price_per_unit": 9.0,
+      "stock_quantity": 160
+    },
+    {
+      "medicine_id": 508,
+      "medicine_name": "Metformin 500mg",
+      "manufacturer": "USV",
+      "price_per_unit": 2.5,
+      "stock_quantity": 270
+    },
+    {
+      "medicine_id": 509,
+      "medicine_name": "Azithromycin 500mg",
+      "manufacturer": "Alkem",
+      "price_per_unit": 22.0,
+      "stock_quantity": 8
+    },
+    {
+      "medicine_id": 510,
+      "medicine_name": "Sumatriptan 50mg",
+      "manufacturer": "Sun Pharma",
+      "price_per_unit": 35.0,
+      "stock_quantity": 5
+    },
+    {
+      "medicine_id": 511,
+      "medicine_name": "Calcium + Vitamin D3",
+      "manufacturer": "Torrent",
+      "price_per_unit": 7.0,
+      "stock_quantity": 120
+    },
+    {
+      "medicine_id": 512,
+      "medicine_name": "ORS Sachet",
+      "manufacturer": "FDC",
+      "price_per_unit": 12.0,
+      "stock_quantity": 0
+    }
+  ],
+  "inspector": null,
+  "error": null
+}

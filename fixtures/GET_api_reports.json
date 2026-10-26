@@ -1,0 +1,141 @@
+{
+  "ok": true,
+  "message": "Reports catalogue retrieved",
+  "data": [
+    {
+      "id": "q01",
+      "label": "A",
+      "title": "Visit history of a patient",
+      "concept": "3-table JOIN",
+      "chart": null
+    },
+    {
+      "id": "q02",
+      "label": "B",
+      "title": "Visits per doctor",
+      "concept": "LEFT JOIN, GROUP BY",
+      "chart": "bar"
+    },
+    {
+      "id": "q03",
+      "label": "C",
+      "title": "Emergency cases by triage",
+      "concept": "CASE, GROUP BY",
+      "chart": "pie"
+    },
+    {
+      "id": "q04",
+      "label": "D",
+      "title": "Departments with 3+ visits",
+      "concept": "JOIN, HAVING",
+      "chart": "bar"
+    },
+    {
+      "id": "q05",
+      "label": "E",
+      "title": "Low-stock medicines (<20)",
+      "concept": "WHERE, ORDER BY",
+      "chart": null
+    },
+    {
+      "id": "q06",
+      "label": "F",
+      "title": "Free beds per ward",
+      "concept": "Aggregate on filtered set",
+      "chart": "bar"
+    },
+    {
+      "id": "q07",
+      "label": "G",
+      "title": "Bed occupancy % per ward",
+      "concept": "Conditional aggregation",
+      "chart": "bar"
+    },
+    {
+      "id": "q08",
+      "label": "H",
+      "title": "Bills by payment status",
+      "concept": "SUM/COUNT, GROUP BY",
+      "chart": "pie"
+    },
+    {
+      "id": "q09",
+      "label": "I",
+      "title": "Monthly billing summary",
+      "concept": "strftime in GROUP BY",
+      "chart": "stacked_bar"
+    },
+    {
+      "id": "q10",
+      "label": "J",
+      "title": "Pending bills",
+      "concept": "4-table JOIN",
+      "chart": null
+    },
+    {
+      "id": "q11",
+      "label": "K",
+      "title": "Patients with no emergency visit",
+      "concept": "NOT EXISTS (correlated)",
+      "chart": null
+    },
+    {
+      "id": "q12",
+      "label": "L",
+      "title": "Doctors above average fee",
+      "concept": "Scalar subquery",
+      "chart": null
+    },
+    {
+      "id": "q13",
+      "label": "M",
+      "title": "Top 3 billed patients",
+      "concept": "Subquery + RANK() window",
+      "chart": "bar"
+    },
+    {
+      "id": "q14",
+      "label": "N",
+      "title": "Prescription statistics per medicine",
+      "concept": "JOIN, HAVING, computed aggregate",
+      "chart": "bar"
+    },
+    {
+      "id": "q15",
+      "label": "O",
+      "title": "Currently admitted patients",
+      "concept": "Multi-table JOIN",
+      "chart": null
+    },
+    {
+      "id": "q16",
+      "label": "P",
+      "title": "Emergency waiting queue",
+      "concept": "ORDER BY two columns",
+      "chart": null
+    },
+    {
+      "id": "q17",
+      "label": "Q",
+      "title": "Average and highest bill by visit type",
+      "concept": "AVG, ROUND, MAX",
+      "chart": "bar"
+    },
+    {
+      "id": "q18",
+      "label": "R",
+      "title": "Doctors who prescribed Aspirin",
+      "concept": "Nested IN subquery",
+      "chart": null
+    },
+    {
+      "id": "q19",
+      "label": "S",
+      "title": "Patients with more than one visit",
+      "concept": "HAVING, MIN/MAX dates",
+      "chart": null
+    }
+  ],
+  "inspector": null,
+  "error": null
+}

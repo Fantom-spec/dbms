@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "message": "ER diagram retrieved",
+  "data": {
+    "mermaid": "erDiagram\n  PATIENT ||--o{ VISIT : \"has\"\n  DOCTOR ||--o{ VISIT : \"attends\"\n  BED ||--o{ VISIT : \"assigned\"\n  VISIT ||--o{ PRESCRIPTION : \"contains\"\n  MEDICINE ||--o{ PRESCRIPTION : \"in\"\n  VISIT ||--|| BILL : \"generates\"\n  PATIENT {\n    int patient_id PK\n    string patient_name\n    string gender\n    date date_of_birth\n    string phone UK\n    string address\n    string blood_group\n    string emergency_contact\n    date registration_date\n  }\n  DOCTOR {\n    int doctor_id PK\n    string doctor_name\n    string department\n    string specialization\n    string phone UK\n    decimal consultation_fee\n    string shift\n    string availability_status\n  }\n  BED {\n    int bed_id PK\n    string ward_type\n    string bed_status\n    decimal daily_charge\n  }\n  MEDICINE {\n    int medicine_id PK\n    string medicine_name\n    string manufacturer\n    decimal price_per_unit\n    int stock_quantity\n  }\n  VISIT {\n    int visit_id PK\n    int patient_id FK\n    int doctor_id FK\n    int bed_id FK\n    string visit_type\n    datetime visit_datetime\n    string complaint\n    int triage_level\n    string visit_status\n    datetime admit_time\n    datetime discharge_time\n  }\n  PRESCRIPTION {\n    int prescription_id PK\n    int visit_id FK\n    int medicine_id FK\n    string dosage\n    int duration_days\n    int quantity\n  }\n  BILL {\n    int bill_id PK\n    int visit_id FK UK\n    decimal consultation_charge\n    decimal medicine_charge\n    decimal bed_charge\n    decimal total_amount\n    string payment_mode\n    string payment_status\n    date bill_date\n  }\n  AUDIT_LOG {\n    int log_id PK\n    string table_name\n    string action_type\n    int record_id\n    string changed_by\n    datetime change_time\n    string description\n  }"
+  },
+  "inspector": null,
+  "error": null
+}

@@ -1,0 +1,64 @@
+{
+  "ok": true,
+  "message": "Emergency registered. Visit ID 422, Doctor: Dr. Arvind Menon (203)",
+  "data": {
+    "visit_id": 422,
+    "doctor_id": 203,
+    "doctor_name": "Dr. Arvind Menon"
+  },
+  "inspector": {
+    "operation": "Register emergency",
+    "component": {
+      "name": "services.register_emergency",
+      "type": "procedure",
+      "oracle_equivalent": "sp_register_emergency"
+    },
+    "tables": [
+      "visit",
+      "audit_log"
+    ],
+    "functions_used": [],
+    "triggers_fired": [
+      {
+        "name": "trg_audit_visit",
+        "event": "AFTER INSERT",
+        "effect": "audit_log row 15 written"
+      }
+    ],
+    "sql": [
+      "BEGIN IMMEDIATE",
+      "INSERT INTO visit (visit_id, patient_id, doctor_id, visit_type, visit_datetime, complaint, triage_level, visit_status) VALUES (422, 109, 203, 'Emergency', '2026-10-12 21:00:00', 'Chest pain', 1, 'Waiting')",
+      "COMMIT"
+    ],
+    "before": {
+      "visit": [],
+      "audit_log": []
+    },
+    "after": {
+      "visit": [
+        {
+          "visit_id": 422,
+          "patient_id": 109,
+          "doctor_id": 203,
+          "visit_type": "Emergency",
+          "triage_level": 1,
+          "visit_status": "Waiting"
+        }
+      ],
+      "audit_log": [
+        {
+          "log_id": 15
+        }
+      ]
+    },
+    "viva": {
+      "operation": "Register emergency for patient 109 (Vivek Joshi), triage 1",
+      "tables": "visit (insert), audit_log (insert via trigger)",
+      "component": "Procedure sp_register_emergency (Python service) + trigger trg_audit_visit",
+      "effect": "One new Waiting emergency visit assigned to Dr. Arvind Menon (lowest id among tied); one audit row",
+      "result": "Visit 422 registered"
+    },
+    "elapsed_ms": 4.8
+  },
+  "error": null
+}

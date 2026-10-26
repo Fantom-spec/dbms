@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "message": "SQL query executed",
+  "data": {
+    "columns": [
+      "patient_id",
+      "patient_name"
+    ],
+    "rows": [
+      [
+        101,
+        "Arjun Reddy"
+      ],
+      [
+        102,
+        "Kavita Sharma"
+      ]
+    ],
+    "row_count": 2,
+    "elapsed_ms": 1.5
+  },
+  "inspector": null,
+  "error": null
+}

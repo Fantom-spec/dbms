@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "message": "Schema overview retrieved",
+  "data": {
+    "tables": 9,
+    "triggers": 15,
+    "functions": 3,
+    "indexes": 7
+  },
+  "inspector": null,
+  "error": null
+}

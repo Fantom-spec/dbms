@@ -1,0 +1,85 @@
+{
+  "ok": true,
+  "message": "Patient discharged. Visit ID 422, Bed ID 307, Days stayed: 1",
+  "data": {
+    "visit_id": 422,
+    "bed_id": 307,
+    "days_stayed": 1
+  },
+  "inspector": {
+    "operation": "Discharge patient",
+    "component": {
+      "name": "services.discharge_patient",
+      "type": "procedure",
+      "oracle_equivalent": "sp_discharge_patient"
+    },
+    "tables": [
+      "visit",
+      "bed",
+      "audit_log"
+    ],
+    "functions_used": [
+      {
+        "name": "fn_days_stayed",
+        "purpose": "Calculate days stayed"
+      }
+    ],
+    "triggers_fired": [
+      {
+        "name": "trg_audit_visit",
+        "event": "AFTER UPDATE",
+        "effect": "audit_log row 18 written"
+      }
+    ],
+    "sql": [
+      "BEGIN IMMEDIATE",
+      "UPDATE visit SET visit_status = 'Discharged', discharge_time = '2026-10-12 22:00:00' WHERE visit_id = 422",
+      "UPDATE bed SET bed_status = 'Cleaning' WHERE bed_id = 307",
+      "COMMIT"
+    ],
+    "before": {
+      "visit": [
+        {
+          "visit_id": 422,
+          "visit_status": "Admitted",
+          "bed_id": 307
+        }
+      ],
+      "bed": [
+        {
+          "bed_id": 307,
+          "bed_status": "Occupied"
+        }
+      ]
+    },
+    "after": {
+      "visit": [
+        {
+          "visit_id": 422,
+          "visit_status": "Discharged",
+          "discharge_time": "2026-10-12 22:00:00"
+        }
+      ],
+      "bed": [
+        {
+          "bed_id": 307,
+          "bed_status": "Cleaning"
+        }
+      ],
+      "audit_log": [
+        {
+          "log_id": 18
+        }
+      ]
+    },
+    "viva": {
+      "operation": "Discharge patient from visit 422",
+      "tables": "visit (update), bed (update), audit_log (insert via trigger)",
+      "component": "Procedure sp_discharge_patient + trigger trg_audit_visit + function fn_days_stayed",
+      "effect": "Visit 422 -> Discharged with discharge_time; bed 307 -> Cleaning; audit row written; fn_days_stayed returns 1",
+      "result": "Visit 422 discharged"
+    },
+    "elapsed_ms": 3.8
+  },
+  "error": null
+}

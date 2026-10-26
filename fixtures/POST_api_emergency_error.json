@@ -1,0 +1,24 @@
+{
+  "ok": false,
+  "message": "Triage level must be between 1 and 4",
+  "error": {"kind": "business_rule", "code": "BAD_TRIAGE", "constraint": "chk_visit_range", "detail": "CHECK constraint failed: chk_visit_range"},
+  "data": null,
+  "inspector": {
+    "operation": "Register emergency (bad triage)",
+    "component": {"name": "services.register_emergency", "type": "procedure", "oracle_equivalent": "sp_register_emergency"},
+    "tables": ["visit"],
+    "functions_used": [],
+    "triggers_fired": [],
+    "sql": ["BEGIN IMMEDIATE", "INSERT INTO visit (...) VALUES (...)", "ROLLBACK"],
+    "before": {},
+    "after": {},
+    "viva": {
+      "operation": "Attempt to register emergency with triage level 7",
+      "tables": "visit (insert attempted)",
+      "component": "CHECK constraint chk_visit_range",
+      "effect": "Insert rejected, transaction rolled back",
+      "result": "Blocked by check constraint"
+    },
+    "elapsed_ms": 1.3
+  }
+}

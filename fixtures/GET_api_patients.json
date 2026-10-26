@@ -1,0 +1,152 @@
+{
+  "ok": true,
+  "message": "Patients retrieved",
+  "data": [
+    {
+      "patient_id": 101,
+      "patient_name": "Arjun Reddy",
+      "gender": "Male",
+      "date_of_birth": "1985-03-14",
+      "phone": "9876500101",
+      "address": "12 Gandhi Road, Chennai",
+      "blood_group": "B+",
+      "emergency_contact": "9876511101",
+      "registration_date": "2026-01-10",
+      "visit_count": 2
+    },
+    {
+      "patient_id": 102,
+      "patient_name": "Kavita Sharma",
+      "gender": "Female",
+      "date_of_birth": "1972-07-22",
+      "phone": "9876500102",
+      "address": "45 MG Road, Bengaluru",
+      "blood_group": "O+",
+      "emergency_contact": "9876511102",
+      "registration_date": "2026-01-18",
+      "visit_count": 2
+    },
+    {
+      "patient_id": 103,
+      "patient_name": "Rahul Verma",
+      "gender": "Male",
+      "date_of_birth": "1990-11-05",
+      "phone": "9876500103",
+      "address": "7 Lake View, Hyderabad",
+      "blood_group": "A+",
+      "emergency_contact": "9876511103",
+      "registration_date": "2026-02-02",
+      "visit_count": 3
+    },
+    {
+      "patient_id": 104,
+      "patient_name": "Divya Krishnan",
+      "gender": "Female",
+      "date_of_birth": "1998-01-30",
+      "phone": "9876500104",
+      "address": "23 Anna Nagar, Chennai",
+      "blood_group": "AB+",
+      "emergency_contact": "9876511104",
+      "registration_date": "2026-02-14",
+      "visit_count": 3
+    },
+    {
+      "patient_id": 105,
+      "patient_name": "Mohammed Irfan",
+      "gender": "Male",
+      "date_of_birth": "2018-05-19",
+      "phone": "9876500105",
+      "address": "18 Park Street, Kolkata",
+      "blood_group": "O-",
+      "emergency_contact": "9876511105",
+      "registration_date": "2026-03-05",
+      "visit_count": 2
+    },
+    {
+      "patient_id": 106,
+      "patient_name": "Sunita Patil",
+      "gender": "Female",
+      "date_of_birth": "1965-09-09",
+      "phone": "9876500106",
+      "address": "5 FC Road, Pune",
+      "blood_group": "B-",
+      "emergency_contact": "9876511106",
+      "registration_date": "2026-03-21",
+      "visit_count": 2
+    },
+    {
+      "patient_id": 107,
+      "patient_name": "Aakash Gupta",
+      "gender": "Male",
+      "date_of_birth": "2001-12-12",
+      "phone": "9876500107",
+      "address": "88 Civil Lines, Delhi",
+      "blood_group": "A-",
+      "emergency_contact": "9876511107",
+      "registration_date": "2026-04-11",
+      "visit_count": 2
+    },
+    {
+      "patient_id": 108,
+      "patient_name": "Lakshmi Narayanan",
+      "gender": "Female",
+      "date_of_birth": "1958-02-27",
+      "phone": "9876500108",
+      "address": "9 Temple Street, Madurai",
+      "blood_group": "O+",
+      "emergency_contact": "9876511108",
+      "registration_date": "2026-05-02",
+      "visit_count": 2
+    },
+    {
+      "patient_id": 109,
+      "patient_name": "Vivek Joshi",
+      "gender": "Male",
+      "date_of_birth": "1979-06-18",
+      "phone": "9876500109",
+      "address": "31 Residency Road, Bengaluru",
+      "blood_group": "B+",
+      "emergency_contact": "9876511109",
+      "registration_date": "2026-06-15",
+      "visit_count": 1
+    },
+    {
+      "patient_id": 110,
+      "patient_name": "Neha Kapoor",
+      "gender": "Female",
+      "date_of_birth": "1988-04-03",
+      "phone": "9876500110",
+      "address": "14 Sector 21, Noida",
+      "blood_group": "A+",
+      "emergency_contact": "9876511110",
+      "registration_date": "2026-07-08",
+      "visit_count": 2
+    },
+    {
+      "patient_id": 111,
+      "patient_name": "Imran Khan",
+      "gender": "Male",
+      "date_of_birth": "1995-08-25",
+      "phone": "9876500111",
+      "address": "2 Mount Road, Chennai",
+      "blood_group": "AB-",
+      "emergency_contact": "9876511111",
+      "registration_date": "2026-09-14",
+      "visit_count": 1
+    },
+    {
+      "patient_id": 112,
+      "patient_name": "Pooja Menon",
+      "gender": "Female",
+      "date_of_birth": "1993-12-01",
+      "phone": "9876500112",
+      "address": "6 Marine Drive, Kochi",
+      "blood_group": "O+",
+      "emergency_contact": "9876511112",
+      "registration_date": "2026-09-15",
+      "visit_count": 1
+    }
+  ],
+  "inspector": null,
+  "error": null
+}

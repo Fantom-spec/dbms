@@ -1,0 +1,64 @@
+{
+  "ok": true,
+  "message": "Prescription deleted. Prescription ID 623, stock after: 550",
+  "data": {
+    "prescription_id": 623,
+    "stock_after": 550
+  },
+  "inspector": {
+    "operation": "Delete prescription",
+    "component": {
+      "name": "services.delete_prescription",
+      "type": "procedure",
+      "oracle_equivalent": "N/A"
+    },
+    "tables": [
+      "prescription",
+      "medicine"
+    ],
+    "functions_used": [],
+    "triggers_fired": [
+      {
+        "name": "trg_reduce_stock",
+        "event": "AFTER DELETE",
+        "effect": "medicine stock 540 -> 550"
+      }
+    ],
+    "sql": [
+      "BEGIN IMMEDIATE",
+      "DELETE FROM prescription WHERE prescription_id = 623",
+      "COMMIT"
+    ],
+    "before": {
+      "prescription": [
+        {
+          "prescription_id": 623
+        }
+      ],
+      "medicine": [
+        {
+          "medicine_id": 506,
+          "stock_quantity": 540
+        }
+      ]
+    },
+    "after": {
+      "prescription": [],
+      "medicine": [
+        {
+          "medicine_id": 506,
+          "stock_quantity": 550
+        }
+      ]
+    },
+    "viva": {
+      "operation": "Delete prescription 623 (Aspirin 75mg x10)",
+      "tables": "prescription (delete), medicine (update via trigger trg_reduce_stock__delete)",
+      "component": "Service delete_prescription + trigger trg_reduce_stock__delete",
+      "effect": "Prescription row deleted; Aspirin stock restored from 540 to 550",
+      "result": "Prescription 623 deleted, stock restored"
+    },
+    "elapsed_ms": 2.2
+  },
+  "error": null
+}

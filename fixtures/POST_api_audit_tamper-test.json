@@ -1,0 +1,43 @@
+{
+  "ok": true,
+  "message": "Tamper test executed",
+  "data": {
+    "blocked": true,
+    "error": "AUDIT_LOG entries cannot be modified or deleted"
+  },
+  "inspector": {
+    "operation": "Audit tamper test (UPDATE)",
+    "component": {
+      "name": "trg_protect_audit",
+      "type": "trigger",
+      "oracle_equivalent": "trg_protect_audit"
+    },
+    "tables": [
+      "audit_log"
+    ],
+    "functions_used": [],
+    "triggers_fired": [
+      {
+        "name": "trg_protect_audit",
+        "event": "BEFORE UPDATE",
+        "effect": "RAISE(ABORT, 'AUDIT_LOG entries cannot be modified or deleted')"
+      }
+    ],
+    "sql": [
+      "BEGIN",
+      "UPDATE audit_log SET description = 'tampered' WHERE log_id = 1",
+      "ROLLBACK"
+    ],
+    "before": {},
+    "after": {},
+    "viva": {
+      "operation": "Attempt to UPDATE audit_log row",
+      "tables": "audit_log (update attempted)",
+      "component": "Trigger trg_protect_audit",
+      "effect": "Update blocked by trigger; transaction rolled back",
+      "result": "Blocked by trigger"
+    },
+    "elapsed_ms": 0.8
+  },
+  "error": null
+}

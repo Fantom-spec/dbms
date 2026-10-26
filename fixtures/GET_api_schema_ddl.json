@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "message": "DDL retrieved",
+  "data": {
+    "ddl": "-- Schema DDL\nCREATE TABLE patient (\n  patient_id INTEGER PRIMARY KEY AUTOINCREMENT,\n  patient_name TEXT NOT NULL,\n  gender TEXT,\n  date_of_birth TEXT NOT NULL,\n  phone TEXT NOT NULL,\n  address TEXT,\n  blood_group TEXT,\n  emergency_contact TEXT,\n  registration_date TEXT DEFAULT (date('now','localtime')),\n  CONSTRAINT pk_patient PRIMARY KEY (patient_id),\n  CONSTRAINT uq_pat_phone UNIQUE (phone),\n  CONSTRAINT chk_pat_gender CHECK (gender IN ('Male','Female','Other')),\n  CONSTRAINT chk_pat_phone CHECK (phone GLOB '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'),\n  CONSTRAINT chk_pat_blood CHECK (blood_group IN ('A+','A-','B+','B-','AB+','AB-','O+','O-'))\n);\n-- ... (full DDL for all tables, indexes, triggers)"
+  },
+  "inspector": null,
+  "error": null
+}

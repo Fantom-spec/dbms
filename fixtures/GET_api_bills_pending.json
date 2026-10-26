@@ -1,0 +1,73 @@
+{
+  "ok": true,
+  "message": "Pending bills retrieved (cursor)",
+  "data": {
+    "rows": [
+      [
+        706,
+        "Kavita Sharma",
+        "2026-10-01",
+        1115
+      ],
+      [
+        708,
+        "Divya Krishnan",
+        "2026-10-03",
+        797.5
+      ],
+      [
+        710,
+        "Sunita Patil",
+        "2026-10-08",
+        4273
+      ],
+      [
+        711,
+        "Aakash Gupta",
+        "2026-10-07",
+        1075
+      ]
+    ],
+    "console_lines": [
+      "PENDING BILLS (amount >= 0)",
+      "----------------------------------",
+      "Bill 706 | Kavita Sharma        | 01-Oct-2026 | Rs. 1,115.00",
+      "Bill 708 | Divya Krishnan       | 03-Oct-2026 | Rs.   797.50",
+      "Bill 710 | Sunita Patil         | 08-Oct-2026 | Rs. 4,273.00",
+      "Bill 711 | Aakash Gupta         | 07-Oct-2026 | Rs. 1,075.00",
+      "----------------------------------",
+      "4 bill(s) pending, total Rs. 7,260.50"
+    ],
+    "count": 4,
+    "total": 7260.5
+  },
+  "inspector": {
+    "operation": "Pending bills cursor",
+    "component": {
+      "name": "queries.pending_bills_cursor",
+      "type": "cursor",
+      "oracle_equivalent": "sp_pending_bills"
+    },
+    "tables": [
+      "bill",
+      "visit",
+      "patient"
+    ],
+    "functions_used": [],
+    "triggers_fired": [],
+    "sql": [
+      "SELECT b.bill_id, p.patient_name, b.bill_date, b.total_amount FROM bill b JOIN visit v ON v.visit_id = b.visit_id JOIN patient p ON p.patient_id = v.patient_id WHERE b.payment_status = 'Pending' AND b.total_amount >= 0 ORDER BY b.bill_date, b.bill_id"
+    ],
+    "before": {},
+    "after": {},
+    "viva": {
+      "operation": "Display pending bills using explicit cursor loop",
+      "tables": "bill, visit, patient (SELECT only)",
+      "component": "Cursor query with fetchone loop",
+      "effect": "4 pending bills listed with formatted output",
+      "result": "4 bills, total 7260.50"
+    },
+    "elapsed_ms": 3.2
+  },
+  "error": null
+}

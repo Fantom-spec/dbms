@@ -1,0 +1,104 @@
+{
+  "ok": true,
+  "message": "Schema triggers retrieved",
+  "data": [
+    {
+      "logical_name": "trg_reduce_stock",
+      "physical": [
+        "trg_reduce_stock__insert",
+        "trg_reduce_stock__delete"
+      ],
+      "timing": "BEFORE INSERT / AFTER DELETE",
+      "events": [
+        "INSERT",
+        "DELETE"
+      ],
+      "table": "prescription",
+      "purpose": "Reduce stock on prescription insert; restore on delete; reject if insufficient",
+      "sql": "CREATE TRIGGER trg_reduce_stock__insert BEFORE INSERT ON prescription BEGIN SELECT RAISE(ABORT, 'Insufficient stock for ' || m.medicine_name || ': available ' || m.stock_quantity || ', requested ' || NEW.quantity) FROM medicine m WHERE m.medicine_id = NEW.medicine_id AND m.stock_quantity < NEW.quantity; UPDATE medicine SET stock_quantity = stock_quantity - NEW.quantity WHERE medicine_id = NEW.medicine_id; END;"
+    },
+    {
+      "logical_name": "trg_audit_visit",
+      "physical": [
+        "trg_audit_visit__insert",
+        "trg_audit_visit__update",
+        "trg_audit_visit__delete"
+      ],
+      "timing": "AFTER",
+      "events": [
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "table": "visit",
+      "purpose": "Audit visit INSERT/UPDATE/DELETE to audit_log with changed_by from app_session",
+      "sql": "CREATE TRIGGER trg_audit_visit__insert AFTER INSERT ON visit BEGIN INSERT INTO audit_log (table_name, action_type, record_id, changed_by, description) VALUES ('VISIT', 'INSERT', NEW.visit_id, (SELECT username FROM app_session WHERE id=1), 'New ' || NEW.visit_type || ' visit for patient ' || NEW.patient_id); END;"
+    },
+    {
+      "logical_name": "trg_audit_bill",
+      "physical": [
+        "trg_audit_bill__insert",
+        "trg_audit_bill__update",
+        "trg_audit_bill__delete"
+      ],
+      "timing": "AFTER",
+      "events": [
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "table": "bill",
+      "purpose": "Audit bill INSERT/UPDATE/DELETE to audit_log with changed_by from app_session",
+      "sql": "CREATE TRIGGER trg_audit_bill__insert AFTER INSERT ON bill BEGIN INSERT INTO audit_log (table_name, action_type, record_id, changed_by, description) VALUES ('BILL', 'INSERT', NEW.bill_id, (SELECT username FROM app_session WHERE id=1), 'Bill generated: total ' || NEW.total_amount || ' (' || NEW.payment_status || ')'); END;"
+    },
+    {
+      "logical_name": "trg_audit_patient",
+      "physical": [
+        "trg_audit_patient__insert",
+        "trg_audit_patient__update",
+        "trg_audit_patient__delete"
+      ],
+      "timing": "AFTER",
+      "events": [
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "table": "patient",
+      "purpose": "Audit patient INSERT/UPDATE/DELETE to audit_log with changed_by from app_session",
+      "sql": "CREATE TRIGGER trg_audit_patient__insert AFTER INSERT ON patient BEGIN INSERT INTO audit_log (table_name, action_type, record_id, changed_by, description) VALUES ('PATIENT', 'INSERT', NEW.patient_id, (SELECT username FROM app_session WHERE id=1), 'New patient registered'); END;"
+    },
+    {
+      "logical_name": "trg_doctor_status",
+      "physical": [
+        "trg_doctor_status__insert",
+        "trg_doctor_status__update"
+      ],
+      "timing": "AFTER",
+      "events": [
+        "INSERT",
+        "UPDATE OF visit_status"
+      ],
+      "table": "visit",
+      "purpose": "Set doctor Busy when visit becomes Under Treatment; Available when it leaves Under Treatment",
+      "sql": "CREATE TRIGGER trg_doctor_status__update AFTER UPDATE OF visit_status ON visit BEGIN IF NEW.visit_status = 'Under Treatment' THEN UPDATE doctor SET availability_status = 'Busy' WHERE doctor_id = NEW.doctor_id; ELSIF OLD.visit_status = 'Under Treatment' THEN UPDATE doctor SET availability_status = 'Available' WHERE doctor_id = NEW.doctor_id; END IF; END;"
+    },
+    {
+      "logical_name": "trg_protect_audit",
+      "physical": [
+        "trg_protect_audit__update",
+        "trg_protect_audit__delete"
+      ],
+      "timing": "BEFORE",
+      "events": [
+        "UPDATE",
+        "DELETE"
+      ],
+      "table": "audit_log",
+      "purpose": "Prevent modification or deletion of audit_log entries",
+      "sql": "CREATE TRIGGER trg_protect_audit__update BEFORE UPDATE ON audit_log BEGIN SELECT RAISE(ABORT, 'AUDIT_LOG entries cannot be modified or deleted'); END;"
+    }
+  ],
+  "inspector": null,
+  "error": null
+}

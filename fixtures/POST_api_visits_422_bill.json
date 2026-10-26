@@ -1,0 +1,78 @@
+{
+  "ok": true,
+  "message": "Bill generated. Bill ID 712: consultation 1000 + medicine 15 + bed 5000 = 6015, Pending",
+  "data": {
+    "bill_id": 712,
+    "consultation_charge": 1000,
+    "medicine_charge": 15,
+    "bed_charge": 5000,
+    "total_amount": 6015
+  },
+  "inspector": {
+    "operation": "Generate bill",
+    "component": {
+      "name": "services.generate_bill",
+      "type": "procedure",
+      "oracle_equivalent": "sp_generate_bill (new)"
+    },
+    "tables": [
+      "bill",
+      "visit",
+      "doctor",
+      "prescription",
+      "medicine",
+      "bed",
+      "audit_log"
+    ],
+    "functions_used": [
+      {
+        "name": "fn_medicine_cost",
+        "purpose": "Calculate medicine total for visit"
+      },
+      {
+        "name": "fn_days_stayed",
+        "purpose": "Calculate bed days for visit"
+      }
+    ],
+    "triggers_fired": [
+      {
+        "name": "trg_audit_bill",
+        "event": "AFTER INSERT",
+        "effect": "audit_log row 19 written"
+      }
+    ],
+    "sql": [
+      "BEGIN IMMEDIATE",
+      "INSERT INTO bill (bill_id, visit_id, consultation_charge, medicine_charge, bed_charge, total_amount, payment_status) VALUES (712, 422, 1000, 15, 5000, 6015, 'Pending')",
+      "COMMIT"
+    ],
+    "before": {
+      "bill": [],
+      "audit_log": []
+    },
+    "after": {
+      "bill": [
+        {
+          "bill_id": 712,
+          "visit_id": 422,
+          "total_amount": 6015,
+          "payment_status": "Pending"
+        }
+      ],
+      "audit_log": [
+        {
+          "log_id": 19
+        }
+      ]
+    },
+    "viva": {
+      "operation": "Generate bill for discharged visit 422",
+      "tables": "bill (insert), audit_log (insert via trigger); reads from visit, doctor, prescription, medicine, bed",
+      "component": "Service generate_bill + functions fn_medicine_cost, fn_days_stayed + trigger trg_audit_bill",
+      "effect": "Bill 712 created: consultation 1000 (Dr. Arvind Menon fee) + medicine 15 (Aspirin 75mg x10 x1.5) + bed 5000 (ICU daily_charge 5000 x 1 day fn_days_stayed) = 6015 Pending; audit row written",
+      "result": "Bill 712 generated"
+    },
+    "elapsed_ms": 6.5
+  },
+  "error": null
+}

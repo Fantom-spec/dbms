@@ -1,0 +1,57 @@
+{
+  "ok": true,
+  "message": "Patient registered. Patient ID 113",
+  "data": {
+    "patient_id": 113
+  },
+  "inspector": {
+    "operation": "Register patient",
+    "component": {
+      "name": "services.register_patient",
+      "type": "procedure",
+      "oracle_equivalent": "N/A (FR1)"
+    },
+    "tables": [
+      "patient",
+      "audit_log"
+    ],
+    "functions_used": [],
+    "triggers_fired": [
+      {
+        "name": "trg_audit_patient",
+        "event": "AFTER INSERT",
+        "effect": "audit_log row 13 written"
+      }
+    ],
+    "sql": [
+      "BEGIN IMMEDIATE",
+      "INSERT INTO patient (...) VALUES (...)",
+      "COMMIT"
+    ],
+    "before": {
+      "patient": [],
+      "audit_log": []
+    },
+    "after": {
+      "patient": [
+        {
+          "patient_id": 113
+        }
+      ],
+      "audit_log": [
+        {
+          "log_id": 13
+        }
+      ]
+    },
+    "viva": {
+      "operation": "Register new patient Sanjay Rao",
+      "tables": "patient (insert), audit_log (insert via trigger)",
+      "component": "Service register_patient + trigger trg_audit_patient",
+      "effect": "One new patient row; one audit row with changed_by=RECEPTION1",
+      "result": "Patient 113 registered"
+    },
+    "elapsed_ms": 3.2
+  },
+  "error": null
+}

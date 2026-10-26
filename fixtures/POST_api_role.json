@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "message": "Role switched to Receptionist",
+  "data": {
+    "role": "Receptionist",
+    "username": "RECEPTION1"
+  },
+  "inspector": null,
+  "error": null
+}

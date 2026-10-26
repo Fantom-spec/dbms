@@ -1,0 +1,140 @@
+{
+  "ok": true,
+  "message": "Bills retrieved",
+  "data": [
+    {
+      "bill_id": 701,
+      "visit_id": 401,
+      "consultation_charge": 550,
+      "medicine_charge": 21,
+      "bed_charge": 0,
+      "total_amount": 571,
+      "payment_mode": "Cash",
+      "payment_status": "Paid",
+      "bill_date": "2026-09-20",
+      "patient_name": "Aakash Gupta"
+    },
+    {
+      "bill_id": 702,
+      "visit_id": 402,
+      "consultation_charge": 500,
+      "medicine_charge": 75,
+      "bed_charge": 0,
+      "total_amount": 575,
+      "payment_mode": "UPI",
+      "payment_status": "Paid",
+      "bill_date": "2026-09-22",
+      "patient_name": "Lakshmi Narayanan"
+    },
+    {
+      "bill_id": 703,
+      "visit_id": 403,
+      "consultation_charge": 500,
+      "medicine_charge": 78,
+      "bed_charge": 0,
+      "total_amount": 578,
+      "payment_mode": "Card",
+      "payment_status": "Paid",
+      "bill_date": "2026-09-25",
+      "patient_name": "Neha Kapoor"
+    },
+    {
+      "bill_id": 704,
+      "visit_id": 404,
+      "consultation_charge": 700,
+      "medicine_charge": 45,
+      "bed_charge": 0,
+      "total_amount": 745,
+      "payment_mode": "UPI",
+      "payment_status": "Paid",
+      "bill_date": "2026-09-28",
+      "patient_name": "Vivek Joshi"
+    },
+    {
+      "bill_id": 705,
+      "visit_id": 405,
+      "consultation_charge": 500,
+      "medicine_charge": 35,
+      "bed_charge": 0,
+      "total_amount": 535,
+      "payment_mode": "Cash",
+      "payment_status": "Paid",
+      "bill_date": "2026-10-01",
+      "patient_name": "Arjun Reddy"
+    },
+    {
+      "bill_id": 706,
+      "visit_id": 406,
+      "consultation_charge": 800,
+      "medicine_charge": 315,
+      "bed_charge": 0,
+      "total_amount": 1115,
+      "payment_mode": null,
+      "payment_status": "Pending",
+      "bill_date": "2026-10-01",
+      "patient_name": "Kavita Sharma"
+    },
+    {
+      "bill_id": 707,
+      "visit_id": 407,
+      "consultation_charge": 1000,
+      "medicine_charge": 161,
+      "bed_charge": 15000,
+      "total_amount": 16161,
+      "payment_mode": "Card",
+      "payment_status": "Paid",
+      "bill_date": "2026-10-05",
+      "patient_name": "Rahul Verma"
+    },
+    {
+      "bill_id": 708,
+      "visit_id": 408,
+      "consultation_charge": 700,
+      "medicine_charge": 97.5,
+      "bed_charge": 0,
+      "total_amount": 797.5,
+      "payment_mode": null,
+      "payment_status": "Pending",
+      "bill_date": "2026-10-03",
+      "patient_name": "Divya Krishnan"
+    },
+    {
+      "bill_id": 709,
+      "visit_id": 409,
+      "consultation_charge": 600,
+      "medicine_charge": 18,
+      "bed_charge": 0,
+      "total_amount": 618,
+      "payment_mode": "Cash",
+      "payment_status": "Paid",
+      "bill_date": "2026-10-04",
+      "patient_name": "Mohammed Irfan"
+    },
+    {
+      "bill_id": 710,
+      "visit_id": 410,
+      "consultation_charge": 1000,
+      "medicine_charge": 273,
+      "bed_charge": 3000,
+      "total_amount": 4273,
+      "payment_mode": null,
+      "payment_status": "Pending",
+      "bill_date": "2026-10-08",
+      "patient_name": "Sunita Patil"
+    },
+    {
+      "bill_id": 711,
+      "visit_id": 411,
+      "consultation_charge": 900,
+      "medicine_charge": 175,
+      "bed_charge": 0,
+      "total_amount": 1075,
+      "payment_mode": null,
+      "payment_status": "Pending",
+      "bill_date": "2026-10-07",
+      "patient_name": "Aakash Gupta"
+    }
+  ],
+  "inspector": null,
+  "error": null
+}

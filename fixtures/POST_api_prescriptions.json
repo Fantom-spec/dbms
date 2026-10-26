@@ -1,0 +1,73 @@
+{
+  "ok": true,
+  "message": "Prescription added. Prescription ID 623, stock after: 540",
+  "data": {
+    "prescription_id": 623,
+    "stock_after": 540
+  },
+  "inspector": {
+    "operation": "Add prescription",
+    "component": {
+      "name": "services.add_prescription",
+      "type": "procedure",
+      "oracle_equivalent": "N/A (FR9)"
+    },
+    "tables": [
+      "prescription",
+      "medicine",
+      "audit_log"
+    ],
+    "functions_used": [],
+    "triggers_fired": [
+      {
+        "name": "trg_reduce_stock",
+        "event": "BEFORE INSERT",
+        "effect": "medicine stock 550 -> 540"
+      },
+      {
+        "name": "trg_audit_visit",
+        "event": "AFTER UPDATE (visit updated?)",
+        "effect": "audit_log row written (indirect)"
+      }
+    ],
+    "sql": [
+      "BEGIN IMMEDIATE",
+      "INSERT INTO prescription (prescription_id, visit_id, medicine_id, dosage, duration_days, quantity) VALUES (623, 422, 506, '1-0-0', 10, 10)",
+      "COMMIT"
+    ],
+    "before": {
+      "prescription": [],
+      "medicine": [
+        {
+          "medicine_id": 506,
+          "stock_quantity": 550
+        }
+      ]
+    },
+    "after": {
+      "prescription": [
+        {
+          "prescription_id": 623,
+          "visit_id": 422,
+          "medicine_id": 506,
+          "quantity": 10
+        }
+      ],
+      "medicine": [
+        {
+          "medicine_id": 506,
+          "stock_quantity": 540
+        }
+      ]
+    },
+    "viva": {
+      "operation": "Prescribe Aspirin 75mg (506) qty 10 for visit 422",
+      "tables": "prescription (insert), medicine (update via trigger trg_reduce_stock)",
+      "component": "Service add_prescription + trigger trg_reduce_stock",
+      "effect": "Prescription row inserted; Aspirin stock reduced from 550 to 540",
+      "result": "Prescription 623 created"
+    },
+    "elapsed_ms": 3.1
+  },
+  "error": null
+}

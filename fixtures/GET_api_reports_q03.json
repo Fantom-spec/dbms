@@ -1,0 +1,46 @@
+{
+  "ok": true,
+  "message": "Report q03 executed",
+  "data": {
+    "id": "q03",
+    "title": "Emergency cases by triage",
+    "concept": "CASE, GROUP BY",
+    "sql": "SELECT triage_level, CASE triage_level WHEN 1 THEN 'Critical' WHEN 2 THEN 'Very urgent' WHEN 3 THEN 'Urgent' ELSE 'Minor' END AS category, COUNT(*) AS cases FROM visit WHERE visit_type = 'Emergency' GROUP BY triage_level ORDER BY triage_level",
+    "columns": [
+      "triage_level",
+      "category",
+      "cases"
+    ],
+    "rows": [
+      [
+        1,
+        "Critical",
+        3
+      ],
+      [
+        2,
+        "Very urgent",
+        2
+      ],
+      [
+        3,
+        "Urgent",
+        1
+      ],
+      [
+        4,
+        "Minor",
+        1
+      ]
+    ],
+    "chart": {
+      "type": "pie",
+      "label_col": "category",
+      "value_cols": [
+        "cases"
+      ]
+    }
+  },
+  "inspector": null,
+  "error": null
+}

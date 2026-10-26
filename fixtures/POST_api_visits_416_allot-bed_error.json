@@ -1,0 +1,24 @@
+{
+  "ok": false,
+  "message": "No free bed in the ICU ward",
+  "error": {"kind": "business_rule", "code": "NO_FREE_BED", "constraint": null, "detail": "No free bed in the ICU ward"},
+  "data": null,
+  "inspector": {
+    "operation": "Allot bed (no free bed)",
+    "component": {"name": "services.allot_bed", "type": "procedure", "oracle_equivalent": "sp_allot_bed"},
+    "tables": ["bed", "visit"],
+    "functions_used": [],
+    "triggers_fired": [],
+    "sql": ["BEGIN IMMEDIATE", "SELECT bed_id FROM bed WHERE ward_type = 'ICU' AND bed_status = 'Free' ORDER BY bed_id LIMIT 1", "ROLLBACK"],
+    "before": {},
+    "after": {},
+    "viva": {
+      "operation": "Attempt to allot ICU bed to visit 416 when none free",
+      "tables": "bed (select), visit (update attempted)",
+      "component": "Service allot_bed - no free bed found",
+      "effect": "No free ICU bed available; transaction rolled back",
+      "result": "Blocked: NO_FREE_BED"
+    },
+    "elapsed_ms": 1.8
+  }
+}

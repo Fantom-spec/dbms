@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "message": "Prescriptions retrieved",
+  "data": [
+    {
+      "prescription_id": 610,
+      "visit_id": 407,
+      "medicine_id": 502,
+      "dosage": "1-0-1",
+      "duration_days": 7,
+      "quantity": 14,
+      "medicine_name": "Amoxicillin 500mg",
+      "price_per_unit": 8.5
+    },
+    {
+      "prescription_id": 611,
+      "visit_id": 407,
+      "medicine_id": 505,
+      "dosage": "1-0-0",
+      "duration_days": 7,
+      "quantity": 7,
+      "medicine_name": "Pantoprazole 40mg",
+      "price_per_unit": 6.0
+    }
+  ],
+  "inspector": null,
+  "error": null
+}

@@ -1,0 +1,24 @@
+{
+  "ok": false,
+  "message": "Phone number 9876500101 already exists",
+  "error": {"kind": "constraint", "code": "UQ_PATIENT_PHONE", "constraint": "uq_pat_phone", "detail": "UNIQUE constraint failed: patient.phone"},
+  "data": null,
+  "inspector": {
+    "operation": "Register patient (duplicate phone)",
+    "component": {"name": "services.register_patient", "type": "procedure", "oracle_equivalent": "N/A"},
+    "tables": ["patient"],
+    "functions_used": [],
+    "triggers_fired": [],
+    "sql": ["BEGIN IMMEDIATE", "INSERT INTO patient (...) VALUES (...)", "ROLLBACK"],
+    "before": {},
+    "after": {},
+    "viva": {
+      "operation": "Attempt to register patient with existing phone",
+      "tables": "patient (insert attempted)",
+      "component": "Constraint uq_pat_phone",
+      "effect": "Insert rejected, transaction rolled back",
+      "result": "Blocked by unique constraint"
+    },
+    "elapsed_ms": 1.1
+  }
+}

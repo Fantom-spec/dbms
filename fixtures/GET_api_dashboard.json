@@ -1,0 +1,132 @@
+{
+  "ok": true,
+  "message": "Dashboard data retrieved",
+  "data": {
+    "kpis": {
+      "patients": 12,
+      "active_visits": 6,
+      "free_beds": 5,
+      "pending_amount": 7260.5,
+      "pending_bills": 4,
+      "waiting_emergency": 3,
+      "low_stock_count": 3
+    },
+    "bed_occupancy": [
+      {
+        "ward_type": "General",
+        "total": 4,
+        "occupied": 0,
+        "occupancy_pct": 0.0
+      },
+      {
+        "ward_type": "Private",
+        "total": 2,
+        "occupied": 1,
+        "occupancy_pct": 50.0
+      },
+      {
+        "ward_type": "ICU",
+        "total": 2,
+        "occupied": 1,
+        "occupancy_pct": 50.0
+      },
+      {
+        "ward_type": "Emergency",
+        "total": 4,
+        "occupied": 0,
+        "occupancy_pct": 0.0
+      }
+    ],
+    "triage": [
+      {
+        "triage_level": 1,
+        "label": "Critical",
+        "count": 3
+      },
+      {
+        "triage_level": 2,
+        "label": "Very urgent",
+        "count": 2
+      },
+      {
+        "triage_level": 3,
+        "label": "Urgent",
+        "count": 1
+      },
+      {
+        "triage_level": 4,
+        "label": "Minor",
+        "count": 1
+      }
+    ],
+    "low_stock": [
+      {
+        "medicine_id": 512,
+        "medicine_name": "ORS Sachet",
+        "stock_quantity": 0,
+        "price_per_unit": 12.0
+      },
+      {
+        "medicine_id": 510,
+        "medicine_name": "Sumatriptan 50mg",
+        "stock_quantity": 5,
+        "price_per_unit": 35.0
+      },
+      {
+        "medicine_id": 509,
+        "medicine_name": "Azithromycin 500mg",
+        "stock_quantity": 8,
+        "price_per_unit": 22.0
+      }
+    ],
+    "recent_audit": [
+      {
+        "log_id": 12,
+        "table_name": "BILL",
+        "action_type": "INSERT",
+        "record_id": 711,
+        "changed_by": "BILLING1",
+        "change_time": "2026-10-07 11:40:55",
+        "description": "Bill generated: total 1075 (Pending)"
+      },
+      {
+        "log_id": 11,
+        "table_name": "BILL",
+        "action_type": "INSERT",
+        "record_id": 710,
+        "changed_by": "BILLING1",
+        "change_time": "2026-10-08 12:30:12",
+        "description": "Bill generated: total 4273 (Pending)"
+      },
+      {
+        "log_id": 10,
+        "table_name": "VISIT",
+        "action_type": "UPDATE",
+        "record_id": 415,
+        "changed_by": "DR_VSINGH",
+        "change_time": "2026-10-12 20:18:50",
+        "description": "Status Waiting -> Under Treatment"
+      },
+      {
+        "log_id": 9,
+        "table_name": "VISIT",
+        "action_type": "INSERT",
+        "record_id": 415,
+        "changed_by": "TRIAGE_NURSE",
+        "change_time": "2026-10-12 20:10:21",
+        "description": "New Emergency visit for patient 111"
+      },
+      {
+        "log_id": 8,
+        "table_name": "VISIT",
+        "action_type": "UPDATE",
+        "record_id": 414,
+        "changed_by": "DR_AMENON",
+        "change_time": "2026-10-10 03:00:48",
+        "description": "Status Waiting -> Admitted"
+      }
+    ]
+  },
+  "inspector": null,
+  "error": null
+}

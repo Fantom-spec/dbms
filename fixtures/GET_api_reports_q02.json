@@ -1,0 +1,76 @@
+{
+  "ok": true,
+  "message": "Report q02 executed",
+  "data": {
+    "id": "q02",
+    "title": "Visits per doctor",
+    "concept": "LEFT JOIN, GROUP BY",
+    "sql": "SELECT d.doctor_name, d.department, COUNT(v.visit_id) AS total_visits FROM doctor d LEFT JOIN visit v ON v.doctor_id = d.doctor_id GROUP BY d.doctor_name, d.department ORDER BY total_visits DESC, d.doctor_name",
+    "columns": [
+      "doctor_name",
+      "department",
+      "total_visits"
+    ],
+    "rows": [
+      [
+        "Dr. Arvind Menon",
+        "Emergency",
+        4
+      ],
+      [
+        "Dr. Priya Nair",
+        "General Medicine",
+        3
+      ],
+      [
+        "Dr. Vikram Singh",
+        "Emergency",
+        3
+      ],
+      [
+        "Dr. Rajesh Kumar",
+        "Cardiology",
+        2
+      ],
+      [
+        "Dr. Sneha Iyer",
+        "Orthopedics",
+        2
+      ],
+      [
+        "Dr. Karthik Raman",
+        "Neurology",
+        1
+      ],
+      [
+        "Dr. Fatima Sheikh",
+        "Pediatrics",
+        1
+      ],
+      [
+        "Dr. Meena Pillai",
+        "Gynecology",
+        1
+      ],
+      [
+        "Dr. Suresh Babu",
+        "General Medicine",
+        1
+      ],
+      [
+        "Dr. Anita Desai",
+        "Dermatology",
+        1
+      ]
+    ],
+    "chart": {
+      "type": "bar",
+      "label_col": "doctor_name",
+      "value_cols": [
+        "total_visits"
+      ]
+    }
+  },
+  "inspector": null,
+  "error": null
+}

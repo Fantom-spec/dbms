@@ -1,0 +1,81 @@
+{
+  "ok": true,
+  "message": "Treatment started. Visit ID 422, status: Under Treatment",
+  "data": {
+    "visit_id": 422,
+    "visit_status": "Under Treatment"
+  },
+  "inspector": {
+    "operation": "Start treatment",
+    "component": {
+      "name": "services.start_treatment",
+      "type": "procedure",
+      "oracle_equivalent": "N/A (FR8)"
+    },
+    "tables": [
+      "visit",
+      "doctor",
+      "audit_log"
+    ],
+    "functions_used": [],
+    "triggers_fired": [
+      {
+        "name": "trg_audit_visit",
+        "event": "AFTER UPDATE",
+        "effect": "audit_log row written"
+      },
+      {
+        "name": "trg_doctor_status",
+        "event": "AFTER UPDATE OF visit_status",
+        "effect": "doctor 203 set to Busy"
+      }
+    ],
+    "sql": [
+      "BEGIN IMMEDIATE",
+      "UPDATE visit SET visit_status = 'Under Treatment' WHERE visit_id = 422",
+      "COMMIT"
+    ],
+    "before": {
+      "visit": [
+        {
+          "visit_id": 422,
+          "visit_status": "Waiting"
+        }
+      ],
+      "doctor": [
+        {
+          "doctor_id": 203,
+          "availability_status": "Available"
+        }
+      ]
+    },
+    "after": {
+      "visit": [
+        {
+          "visit_id": 422,
+          "visit_status": "Under Treatment"
+        }
+      ],
+      "doctor": [
+        {
+          "doctor_id": 203,
+          "availability_status": "Busy"
+        }
+      ],
+      "audit_log": [
+        {
+          "log_id": 16
+        }
+      ]
+    },
+    "viva": {
+      "operation": "Start treatment for emergency visit 422",
+      "tables": "visit (update), doctor (update via trigger), audit_log (insert via trigger)",
+      "component": "Service start_treatment + triggers trg_audit_visit, trg_doctor_status",
+      "effect": "Visit status -> Under Treatment; doctor 203 -> Busy; audit row written",
+      "result": "Visit 422 under treatment"
+    },
+    "elapsed_ms": 3.5
+  },
+  "error": null
+}

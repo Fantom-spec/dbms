@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "message": "Low stock medicines retrieved",
+  "data": [
+    {
+      "medicine_id": 512,
+      "medicine_name": "ORS Sachet",
+      "manufacturer": "FDC",
+      "price_per_unit": 12.0,
+      "stock_quantity": 0
+    },
+    {
+      "medicine_id": 510,
+      "medicine_name": "Sumatriptan 50mg",
+      "manufacturer": "Sun Pharma",
+      "price_per_unit": 35.0,
+      "stock_quantity": 5
+    },
+    {
+      "medicine_id": 509,
+      "medicine_name": "Azithromycin 500mg",
+      "manufacturer": "Alkem",
+      "price_per_unit": 22.0,
+      "stock_quantity": 8
+    }
+  ],
+  "inspector": null,
+  "error": null
+}

@@ -1,0 +1,51 @@
+{
+  "ok": true,
+  "message": "Bed status updated. Bed ID 304, status: Free",
+  "data": {
+    "bed_id": 304,
+    "bed_status": "Free"
+  },
+  "inspector": {
+    "operation": "Set bed status",
+    "component": {
+      "name": "services.set_bed_status",
+      "type": "procedure",
+      "oracle_equivalent": "N/A"
+    },
+    "tables": [
+      "bed"
+    ],
+    "functions_used": [],
+    "triggers_fired": [],
+    "sql": [
+      "BEGIN IMMEDIATE",
+      "UPDATE bed SET bed_status = 'Free' WHERE bed_id = 304",
+      "COMMIT"
+    ],
+    "before": {
+      "bed": [
+        {
+          "bed_id": 304,
+          "bed_status": "Cleaning"
+        }
+      ]
+    },
+    "after": {
+      "bed": [
+        {
+          "bed_id": 304,
+          "bed_status": "Free"
+        }
+      ]
+    },
+    "viva": {
+      "operation": "Mark bed 304 as Free",
+      "tables": "bed (update)",
+      "component": "Service set_bed_status",
+      "effect": "Bed status changed from Cleaning to Free",
+      "result": "Bed 304 is now Free"
+    },
+    "elapsed_ms": 1.2
+  },
+  "error": null
+}

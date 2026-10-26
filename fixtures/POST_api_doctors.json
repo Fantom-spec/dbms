@@ -1,0 +1,44 @@
+{
+  "ok": true,
+  "message": "Doctor created. Doctor ID 211",
+  "data": {
+    "doctor_id": 211
+  },
+  "inspector": {
+    "operation": "Create doctor",
+    "component": {
+      "name": "services.create_doctor",
+      "type": "procedure",
+      "oracle_equivalent": "N/A"
+    },
+    "tables": [
+      "doctor"
+    ],
+    "functions_used": [],
+    "triggers_fired": [],
+    "sql": [
+      "BEGIN IMMEDIATE",
+      "INSERT INTO doctor (...) VALUES (...)",
+      "COMMIT"
+    ],
+    "before": {
+      "doctor": []
+    },
+    "after": {
+      "doctor": [
+        {
+          "doctor_id": 211
+        }
+      ]
+    },
+    "viva": {
+      "operation": "Create new doctor",
+      "tables": "doctor (insert)",
+      "component": "Service create_doctor",
+      "effect": "One new doctor row inserted",
+      "result": "Doctor 211 created"
+    },
+    "elapsed_ms": 2.1
+  },
+  "error": null
+}

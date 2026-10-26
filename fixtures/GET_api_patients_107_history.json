@@ -1,0 +1,37 @@
+{
+  "ok": true,
+  "message": "Patient history retrieved",
+  "data": {
+    "patient": {
+      "patient_id": 107,
+      "patient_name": "Aakash Gupta",
+      "gender": "Male",
+      "date_of_birth": "2001-12-12",
+      "phone": "9876500107",
+      "address": "88 Civil Lines, Delhi",
+      "blood_group": "A-",
+      "emergency_contact": "9876511107",
+      "registration_date": "2026-04-11"
+    },
+    "visits": [
+      {
+        "visit_id": 401,
+        "visit_time": "2026-09-20 10:30:00",
+        "visit_type": "Appointment",
+        "doctor_name": "Dr. Anita Desai",
+        "complaint": "Skin rash",
+        "visit_status": "Discharged"
+      },
+      {
+        "visit_id": 411,
+        "visit_time": "2026-10-07 11:00:00",
+        "visit_type": "Appointment",
+        "doctor_name": "Dr. Karthik Raman",
+        "complaint": "Recurring migraine",
+        "visit_status": "Discharged"
+      }
+    ]
+  },
+  "inspector": null,
+  "error": null
+}

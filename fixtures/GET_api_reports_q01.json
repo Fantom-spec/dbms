@@ -1,0 +1,39 @@
+{
+  "ok": true,
+  "message": "Report q01 executed",
+  "data": {
+    "id": "q01",
+    "title": "Visit history of a patient",
+    "concept": "3-table JOIN",
+    "sql": "SELECT v.visit_id, v.visit_datetime, v.visit_type, d.doctor_name, v.complaint, v.visit_status FROM visit v JOIN patient p ON p.patient_id = v.patient_id JOIN doctor d ON d.doctor_id = v.doctor_id WHERE p.patient_name = 'Aakash Gupta' ORDER BY v.visit_datetime",
+    "columns": [
+      "visit_id",
+      "visit_datetime",
+      "visit_type",
+      "doctor_name",
+      "complaint",
+      "visit_status"
+    ],
+    "rows": [
+      [
+        401,
+        "2026-09-20 10:30:00",
+        "Appointment",
+        "Dr. Anita Desai",
+        "Skin rash",
+        "Discharged"
+      ],
+      [
+        411,
+        "2026-10-07 11:00:00",
+        "Appointment",
+        "Dr. Karthik Raman",
+        "Recurring migraine",
+        "Discharged"
+      ]
+    ],
+    "chart": null
+  },
+  "inspector": null,
+  "error": null
+}

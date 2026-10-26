@@ -1,0 +1,24 @@
+{
+  "ok": false,
+  "message": "Cannot delete patient 101: patient has visits",
+  "error": {"kind": "constraint", "code": "FK_VIOLATION", "constraint": "fk_visit_patient", "detail": "FOREIGN KEY constraint failed"},
+  "data": null,
+  "inspector": {
+    "operation": "Delete patient (has visits)",
+    "component": {"name": "services.delete_patient", "type": "procedure", "oracle_equivalent": "N/A"},
+    "tables": ["patient"],
+    "functions_used": [],
+    "triggers_fired": [],
+    "sql": ["BEGIN IMMEDIATE", "DELETE FROM patient WHERE patient_id = 101", "ROLLBACK"],
+    "before": {},
+    "after": {},
+    "viva": {
+      "operation": "Attempt to delete patient 101 who has visits",
+      "tables": "patient (delete attempted), visit (referencing rows exist)",
+      "component": "Foreign key constraint fk_visit_patient",
+      "effect": "Delete rejected, transaction rolled back",
+      "result": "Blocked by foreign key"
+    },
+    "elapsed_ms": 1.0
+  }
+}

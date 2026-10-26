@@ -1,0 +1,62 @@
+{
+  "ok": true,
+  "message": "Appointment cancelled. Visit ID 421",
+  "data": {
+    "visit_id": 421
+  },
+  "inspector": {
+    "operation": "Cancel appointment",
+    "component": {
+      "name": "services.cancel_appointment",
+      "type": "procedure",
+      "oracle_equivalent": "N/A (FR5)"
+    },
+    "tables": [
+      "visit",
+      "audit_log"
+    ],
+    "functions_used": [],
+    "triggers_fired": [
+      {
+        "name": "trg_audit_visit",
+        "event": "AFTER UPDATE",
+        "effect": "audit_log row written"
+      }
+    ],
+    "sql": [
+      "BEGIN IMMEDIATE",
+      "UPDATE visit SET visit_status = 'Cancelled' WHERE visit_id = 421",
+      "COMMIT"
+    ],
+    "before": {
+      "visit": [
+        {
+          "visit_id": 421,
+          "visit_status": "Scheduled"
+        }
+      ]
+    },
+    "after": {
+      "visit": [
+        {
+          "visit_id": 421,
+          "visit_status": "Cancelled"
+        }
+      ],
+      "audit_log": [
+        {
+          "log_id": 15
+        }
+      ]
+    },
+    "viva": {
+      "operation": "Cancel appointment visit 421",
+      "tables": "visit (update), audit_log (insert via trigger)",
+      "component": "Service cancel_appointment + trigger trg_audit_visit",
+      "effect": "Visit status changed to Cancelled; audit row written",
+      "result": "Visit 421 cancelled"
+    },
+    "elapsed_ms": 2.0
+  },
+  "error": null
+}

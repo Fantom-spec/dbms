@@ -1,0 +1,90 @@
+{
+  "ok": true,
+  "message": "ICU bed allotted. Bed ID 307",
+  "data": {
+    "bed_id": 307
+  },
+  "inspector": {
+    "operation": "Allot bed",
+    "component": {
+      "name": "services.allot_bed",
+      "type": "procedure",
+      "oracle_equivalent": "sp_allot_bed"
+    },
+    "tables": [
+      "visit",
+      "bed",
+      "audit_log"
+    ],
+    "functions_used": [],
+    "triggers_fired": [
+      {
+        "name": "trg_audit_visit",
+        "event": "AFTER UPDATE",
+        "effect": "audit_log row 17 written"
+      },
+      {
+        "name": "trg_doctor_status",
+        "event": "AFTER UPDATE OF visit_status",
+        "effect": "doctor 203 set to Available"
+      }
+    ],
+    "sql": [
+      "BEGIN IMMEDIATE",
+      "UPDATE bed SET bed_status = 'Occupied' WHERE bed_id = 307",
+      "UPDATE visit SET bed_id = 307, admit_time = '2026-10-12 21:30:00', visit_status = 'Admitted' WHERE visit_id = 422",
+      "COMMIT"
+    ],
+    "before": {
+      "visit": [
+        {
+          "visit_id": 422,
+          "visit_status": "Under Treatment",
+          "bed_id": null
+        }
+      ],
+      "bed": [
+        {
+          "bed_id": 307,
+          "bed_status": "Free"
+        }
+      ]
+    },
+    "after": {
+      "visit": [
+        {
+          "visit_id": 422,
+          "visit_status": "Admitted",
+          "bed_id": 307,
+          "admit_time": "2026-10-12 21:30:00"
+        }
+      ],
+      "bed": [
+        {
+          "bed_id": 307,
+          "bed_status": "Occupied"
+        }
+      ],
+      "audit_log": [
+        {
+          "log_id": 17
+        }
+      ],
+      "doctor": [
+        {
+          "doctor_id": 203,
+          "availability_status": "Available"
+        }
+      ]
+    },
+    "viva": {
+      "operation": "Allot ICU bed to emergency visit 422",
+      "tables": "visit (update), bed (update), audit_log (insert via trigger), doctor (update via trigger)",
+      "component": "Procedure sp_allot_bed + triggers trg_audit_visit, trg_doctor_status",
+      "effect": "Bed 307 -> Occupied; visit 422 -> Admitted with admit_time; doctor 203 -> Available; audit row written",
+      "result": "Bed 307 allotted to visit 422"
+    },
+    "elapsed_ms": 5.2
+  },
+  "error": null
+}

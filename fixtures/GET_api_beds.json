@@ -1,0 +1,112 @@
+{
+  "ok": true,
+  "message": "Beds retrieved",
+  "data": {
+    "General": [
+      {
+        "bed_id": 301,
+        "ward_type": "General",
+        "bed_status": "Free",
+        "daily_charge": 600,
+        "visit_id": null,
+        "patient_name": null
+      },
+      {
+        "bed_id": 302,
+        "ward_type": "General",
+        "bed_status": "Free",
+        "daily_charge": 600,
+        "visit_id": null,
+        "patient_name": null
+      },
+      {
+        "bed_id": 303,
+        "ward_type": "General",
+        "bed_status": "Free",
+        "daily_charge": 600,
+        "visit_id": null,
+        "patient_name": null
+      },
+      {
+        "bed_id": 304,
+        "ward_type": "General",
+        "bed_status": "Cleaning",
+        "daily_charge": 600,
+        "visit_id": null,
+        "patient_name": null
+      }
+    ],
+    "Private": [
+      {
+        "bed_id": 305,
+        "ward_type": "Private",
+        "bed_status": "Occupied",
+        "daily_charge": 2500,
+        "visit_id": 413,
+        "patient_name": "Vivek Joshi"
+      },
+      {
+        "bed_id": 306,
+        "ward_type": "Private",
+        "bed_status": "Free",
+        "daily_charge": 2500,
+        "visit_id": null,
+        "patient_name": null
+      }
+    ],
+    "ICU": [
+      {
+        "bed_id": 307,
+        "ward_type": "ICU",
+        "bed_status": "Free",
+        "daily_charge": 5000,
+        "visit_id": null,
+        "patient_name": null
+      },
+      {
+        "bed_id": 308,
+        "ward_type": "ICU",
+        "bed_status": "Occupied",
+        "daily_charge": 5000,
+        "visit_id": 414,
+        "patient_name": "Neha Kapoor"
+      }
+    ],
+    "Emergency": [
+      {
+        "bed_id": 309,
+        "ward_type": "Emergency",
+        "bed_status": "Free",
+        "daily_charge": 1500,
+        "visit_id": null,
+        "patient_name": null
+      },
+      {
+        "bed_id": 310,
+        "ward_type": "Emergency",
+        "bed_status": "Free",
+        "daily_charge": 1500,
+        "visit_id": null,
+        "patient_name": null
+      },
+      {
+        "bed_id": 311,
+        "ward_type": "Emergency",
+        "bed_status": "Free",
+        "daily_charge": 1500,
+        "visit_id": null,
+        "patient_name": null
+      },
+      {
+        "bed_id": 312,
+        "ward_type": "Emergency",
+        "bed_status": "Cleaning",
+        "daily_charge": 1500,
+        "visit_id": null,
+        "patient_name": null
+      }
+    ]
+  },
+  "inspector": null,
+  "error": null
+}

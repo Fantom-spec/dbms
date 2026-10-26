@@ -1,0 +1,62 @@
+{
+  "ok": true,
+  "message": "Patient updated. Patient ID 101",
+  "data": {
+    "patient_id": 101
+  },
+  "inspector": {
+    "operation": "Update patient",
+    "component": {
+      "name": "services.update_patient",
+      "type": "procedure",
+      "oracle_equivalent": "N/A (FR1)"
+    },
+    "tables": [
+      "patient",
+      "audit_log"
+    ],
+    "functions_used": [],
+    "triggers_fired": [
+      {
+        "name": "trg_audit_patient",
+        "event": "AFTER UPDATE",
+        "effect": "audit_log row written"
+      }
+    ],
+    "sql": [
+      "BEGIN IMMEDIATE",
+      "UPDATE patient SET ... WHERE patient_id = 101",
+      "COMMIT"
+    ],
+    "before": {
+      "patient": [
+        {
+          "patient_id": 101,
+          "phone": "9876500101"
+        }
+      ]
+    },
+    "after": {
+      "patient": [
+        {
+          "patient_id": 101,
+          "phone": "9876500199"
+        }
+      ],
+      "audit_log": [
+        {
+          "log_id": 13
+        }
+      ]
+    },
+    "viva": {
+      "operation": "Update patient 101 phone number",
+      "tables": "patient (update), audit_log (insert via trigger)",
+      "component": "Service update_patient + trigger trg_audit_patient",
+      "effect": "Phone updated; audit row written",
+      "result": "Patient 101 updated"
+    },
+    "elapsed_ms": 2.5
+  },
+  "error": null
+}

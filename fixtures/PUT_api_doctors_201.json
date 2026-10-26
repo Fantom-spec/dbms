@@ -1,0 +1,48 @@
+{
+  "ok": true,
+  "message": "Doctor updated. Doctor ID 201",
+  "data": {
+    "doctor_id": 201
+  },
+  "inspector": {
+    "operation": "Update doctor",
+    "component": {
+      "name": "services.update_doctor",
+      "type": "procedure",
+      "oracle_equivalent": "N/A"
+    },
+    "tables": [
+      "doctor"
+    ],
+    "functions_used": [],
+    "triggers_fired": [],
+    "sql": [
+      "BEGIN IMMEDIATE",
+      "UPDATE doctor SET ... WHERE doctor_id = 201",
+      "COMMIT"
+    ],
+    "before": {
+      "doctor": [
+        {
+          "doctor_id": 201
+        }
+      ]
+    },
+    "after": {
+      "doctor": [
+        {
+          "doctor_id": 201
+        }
+      ]
+    },
+    "viva": {
+      "operation": "Update doctor 201 details",
+      "tables": "doctor (update)",
+      "component": "Service update_doctor",
+      "effect": "Doctor details updated",
+      "result": "Doctor 201 updated"
+    },
+    "elapsed_ms": 1.8
+  },
+  "error": null
+}

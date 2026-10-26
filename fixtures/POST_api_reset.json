@@ -1,0 +1,53 @@
+{
+  "ok": true,
+  "message": "Database reset complete",
+  "data": {
+    "counts": {
+      "patient": 12,
+      "doctor": 10,
+      "bed": 12,
+      "medicine": 12,
+      "visit": 20,
+      "prescription": 22,
+      "bill": 11,
+      "audit_log": 12
+    }
+  },
+  "inspector": {
+    "operation": "Reset database",
+    "component": {
+      "name": "api.reset",
+      "type": "procedure",
+      "oracle_equivalent": "N/A"
+    },
+    "tables": [
+      "patient",
+      "doctor",
+      "bed",
+      "medicine",
+      "visit",
+      "prescription",
+      "bill",
+      "audit_log",
+      "app_session"
+    ],
+    "functions_used": [],
+    "triggers_fired": [],
+    "sql": [
+      "DELETE FROM ...",
+      "INSERT INTO ... (seed data)",
+      "COMMIT"
+    ],
+    "before": {},
+    "after": {},
+    "viva": {
+      "operation": "Reset database to seed state",
+      "tables": "All tables recreated from schema.sql, seed.sql, triggers.sql",
+      "component": "init_db.py rebuild",
+      "effect": "All tables restored to golden seed counts",
+      "result": "Database reset"
+    },
+    "elapsed_ms": 150.0
+  },
+  "error": null
+}

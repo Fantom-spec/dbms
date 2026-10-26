@@ -1,0 +1,51 @@
+{
+  "ok": true,
+  "message": "Medicine restocked. Medicine ID 512, new stock: 50",
+  "data": {
+    "medicine_id": 512,
+    "stock_quantity": 50
+  },
+  "inspector": {
+    "operation": "Restock medicine",
+    "component": {
+      "name": "services.restock_medicine",
+      "type": "procedure",
+      "oracle_equivalent": "N/A"
+    },
+    "tables": [
+      "medicine"
+    ],
+    "functions_used": [],
+    "triggers_fired": [],
+    "sql": [
+      "BEGIN IMMEDIATE",
+      "UPDATE medicine SET stock_quantity = stock_quantity + 50 WHERE medicine_id = 512",
+      "COMMIT"
+    ],
+    "before": {
+      "medicine": [
+        {
+          "medicine_id": 512,
+          "stock_quantity": 0
+        }
+      ]
+    },
+    "after": {
+      "medicine": [
+        {
+          "medicine_id": 512,
+          "stock_quantity": 50
+        }
+      ]
+    },
+    "viva": {
+      "operation": "Restock ORS Sachet by 50 units",
+      "tables": "medicine (update)",
+      "component": "Service restock_medicine",
+      "effect": "Stock increased from 0 to 50",
+      "result": "Medicine 512 restocked"
+    },
+    "elapsed_ms": 1.5
+  },
+  "error": null
+}

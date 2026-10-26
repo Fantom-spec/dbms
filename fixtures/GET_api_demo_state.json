@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "message": "Demo state retrieved",
+  "data": {
+    "completed": [],
+    "context": {}
+  },
+  "inspector": null,
+  "error": null
+}

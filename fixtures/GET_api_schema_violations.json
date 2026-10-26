@@ -1,0 +1,85 @@
+{
+  "ok": true,
+  "message": "Violation tests retrieved",
+  "data": [
+    {
+      "id": "v01",
+      "title": "Insert patient with existing phone",
+      "rule": "uq_pat_phone (UNIQUE)",
+      "enforced_by": "UNIQUE constraint",
+      "sql": "INSERT INTO patient (patient_name, phone, gender, date_of_birth) VALUES ('Test', '9876500101', 'Male', '2000-01-01')"
+    },
+    {
+      "id": "v02",
+      "title": "Insert appointment with triage level",
+      "rule": "chk_visit_triage (CHECK)",
+      "enforced_by": "CHECK constraint",
+      "sql": "INSERT INTO visit (patient_id, doctor_id, visit_type, visit_datetime, triage_level) VALUES (101, 202, 'Appointment', '2026-10-27 10:00:00', 1)"
+    },
+    {
+      "id": "v03",
+      "title": "Second active visit for same doctor and time",
+      "rule": "uq_doctor_slot (partial unique index)",
+      "enforced_by": "Partial unique index",
+      "sql": "INSERT INTO visit (patient_id, doctor_id, visit_type, visit_datetime, visit_status) VALUES (101, 202, 'Appointment', '2026-10-27 10:00:00', 'Scheduled')"
+    },
+    {
+      "id": "v04",
+      "title": "Second admitted patient on same bed",
+      "rule": "uq_active_bed (partial unique index)",
+      "enforced_by": "Partial unique index",
+      "sql": "UPDATE visit SET bed_id = 305, visit_status = 'Admitted' WHERE visit_id = 414"
+    },
+    {
+      "id": "v05",
+      "title": "Discharge time before admit time",
+      "rule": "chk_visit_disch (CHECK)",
+      "enforced_by": "CHECK constraint",
+      "sql": "UPDATE visit SET discharge_time = '2026-10-01 10:00:00' WHERE visit_id = 413"
+    },
+    {
+      "id": "v06",
+      "title": "Medicine with price 0",
+      "rule": "chk_med_price (CHECK)",
+      "enforced_by": "CHECK constraint",
+      "sql": "INSERT INTO medicine (medicine_name, price_per_unit, stock_quantity) VALUES ('Test', 0, 10)"
+    },
+    {
+      "id": "v07",
+      "title": "Bill marked Paid without payment mode",
+      "rule": "chk_bill_paid (CHECK)",
+      "enforced_by": "CHECK constraint",
+      "sql": "UPDATE bill SET payment_status = 'Paid' WHERE bill_id = 706"
+    },
+    {
+      "id": "v08",
+      "title": "Delete patient who has visits",
+      "rule": "fk_visit_patient (FOREIGN KEY)",
+      "enforced_by": "FOREIGN KEY constraint",
+      "sql": "DELETE FROM patient WHERE patient_id = 101"
+    },
+    {
+      "id": "v09",
+      "title": "Prescribe more than stock",
+      "rule": "trg_reduce_stock__insert (trigger)",
+      "enforced_by": "Trigger",
+      "sql": "INSERT INTO prescription (visit_id, medicine_id, dosage, duration_days, quantity) VALUES (422, 512, '1-0-0', 5, 5)"
+    },
+    {
+      "id": "v10",
+      "title": "UPDATE/DELETE audit_log row",
+      "rule": "trg_protect_audit (trigger)",
+      "enforced_by": "Trigger",
+      "sql": "UPDATE audit_log SET description = 'tampered' WHERE log_id = 1"
+    },
+    {
+      "id": "v11",
+      "title": "Phone number with letters",
+      "rule": "chk_pat_phone (CHECK)",
+      "enforced_by": "CHECK constraint",
+      "sql": "INSERT INTO patient (patient_name, phone, gender, date_of_birth) VALUES ('Test', '98765ABCDE', 'Male', '2000-01-01')"
+    }
+  ],
+  "inspector": null,
+  "error": null
+}

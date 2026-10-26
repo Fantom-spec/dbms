@@ -1,0 +1,63 @@
+{
+  "ok": true,
+  "message": "Appointment booked. Visit ID 421",
+  "data": {
+    "visit_id": 421
+  },
+  "inspector": {
+    "operation": "Book appointment",
+    "component": {
+      "name": "services.book_appointment",
+      "type": "procedure",
+      "oracle_equivalent": "sp_book_appointment"
+    },
+    "tables": [
+      "visit",
+      "audit_log"
+    ],
+    "functions_used": [],
+    "triggers_fired": [
+      {
+        "name": "trg_audit_visit",
+        "event": "AFTER INSERT",
+        "effect": "audit_log row 14 written"
+      }
+    ],
+    "sql": [
+      "BEGIN IMMEDIATE",
+      "INSERT INTO visit (visit_id, patient_id, doctor_id, visit_type, visit_datetime, complaint, visit_status) VALUES (421, 113, 202, 'Appointment', '2026-10-27 10:00:00', 'Fever', 'Scheduled')",
+      "COMMIT"
+    ],
+    "before": {
+      "visit": [],
+      "audit_log": []
+    },
+    "after": {
+      "visit": [
+        {
+          "visit_id": 421,
+          "patient_id": 113,
+          "doctor_id": 202,
+          "visit_type": "Appointment",
+          "visit_datetime": "2026-10-27 10:00:00",
+          "complaint": "Fever",
+          "visit_status": "Scheduled"
+        }
+      ],
+      "audit_log": [
+        {
+          "log_id": 14
+        }
+      ]
+    },
+    "viva": {
+      "operation": "Book an appointment for patient 113 with Dr. Priya Nair",
+      "tables": "visit (insert), audit_log (insert via trigger)",
+      "component": "Procedure sp_book_appointment (Python service) + trigger trg_audit_visit",
+      "effect": "One new Scheduled visit; one audit row",
+      "result": "Visit 421 booked"
+    },
+    "elapsed_ms": 4.2
+  },
+  "error": null
+}

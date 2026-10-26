@@ -1,0 +1,24 @@
+{
+  "ok": false,
+  "message": "Doctor 202 already has an appointment at that time",
+  "error": {"kind": "business_rule", "code": "SLOT_TAKEN", "constraint": "uq_doctor_slot", "detail": "UNIQUE constraint failed: uq_doctor_slot"},
+  "data": null,
+  "inspector": {
+    "operation": "Book appointment (slot taken)",
+    "component": {"name": "services.book_appointment", "type": "procedure", "oracle_equivalent": "sp_book_appointment"},
+    "tables": ["visit"],
+    "functions_used": [],
+    "triggers_fired": [],
+    "sql": ["BEGIN IMMEDIATE", "INSERT INTO visit (...) VALUES (...)", "ROLLBACK"],
+    "before": {},
+    "after": {},
+    "viva": {
+      "operation": "Attempt to book patient 101 with doctor 202 at same slot as visit 421",
+      "tables": "visit (insert attempted)",
+      "component": "Partial unique index uq_doctor_slot",
+      "effect": "Insert rejected, transaction rolled back",
+      "result": "Blocked by unique index"
+    },
+    "elapsed_ms": 2.1
+  }
+}

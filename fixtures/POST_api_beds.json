@@ -1,0 +1,44 @@
+{
+  "ok": true,
+  "message": "Bed created. Bed ID 313",
+  "data": {
+    "bed_id": 313
+  },
+  "inspector": {
+    "operation": "Create bed",
+    "component": {
+      "name": "services.create_bed",
+      "type": "procedure",
+      "oracle_equivalent": "N/A"
+    },
+    "tables": [
+      "bed"
+    ],
+    "functions_used": [],
+    "triggers_fired": [],
+    "sql": [
+      "BEGIN IMMEDIATE",
+      "INSERT INTO bed (ward_type, daily_charge) VALUES ('General', 600)",
+      "COMMIT"
+    ],
+    "before": {
+      "bed": []
+    },
+    "after": {
+      "bed": [
+        {
+          "bed_id": 313
+        }
+      ]
+    },
+    "viva": {
+      "operation": "Create new General bed",
+      "tables": "bed (insert)",
+      "component": "Service create_bed",
+      "effect": "One new bed row inserted",
+      "result": "Bed 313 created"
+    },
+    "elapsed_ms": 1.8
+  },
+  "error": null
+}

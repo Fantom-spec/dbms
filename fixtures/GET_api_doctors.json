@@ -1,0 +1,108 @@
+{
+  "ok": true,
+  "message": "Doctors retrieved",
+  "data": [
+    {
+      "doctor_id": 201,
+      "doctor_name": "Dr. Rajesh Kumar",
+      "department": "Cardiology",
+      "specialization": "Cardiologist",
+      "phone": "9840011101",
+      "consultation_fee": 800,
+      "shift": "Morning",
+      "availability_status": "Available"
+    },
+    {
+      "doctor_id": 202,
+      "doctor_name": "Dr. Priya Nair",
+      "department": "General Medicine",
+      "specialization": "Physician",
+      "phone": "9840011102",
+      "consultation_fee": 500,
+      "shift": "Morning",
+      "availability_status": "Available"
+    },
+    {
+      "doctor_id": 203,
+      "doctor_name": "Dr. Arvind Menon",
+      "department": "Emergency",
+      "specialization": "Emergency Physician",
+      "phone": "9840011103",
+      "consultation_fee": 1000,
+      "shift": "Night",
+      "availability_status": "Available"
+    },
+    {
+      "doctor_id": 204,
+      "doctor_name": "Dr. Sneha Iyer",
+      "department": "Orthopedics",
+      "specialization": "Orthopedic Surgeon",
+      "phone": "9840011104",
+      "consultation_fee": 700,
+      "shift": "Evening",
+      "availability_status": "Available"
+    },
+    {
+      "doctor_id": 205,
+      "doctor_name": "Dr. Karthik Raman",
+      "department": "Neurology",
+      "specialization": "Neurologist",
+      "phone": "9840011105",
+      "consultation_fee": 900,
+      "shift": "Morning",
+      "availability_status": "Available"
+    },
+    {
+      "doctor_id": 206,
+      "doctor_name": "Dr. Fatima Sheikh",
+      "department": "Pediatrics",
+      "specialization": "Pediatrician",
+      "phone": "9840011106",
+      "consultation_fee": 600,
+      "shift": "Morning",
+      "availability_status": "Available"
+    },
+    {
+      "doctor_id": 207,
+      "doctor_name": "Dr. Vikram Singh",
+      "department": "Emergency",
+      "specialization": "Trauma Specialist",
+      "phone": "9840011107",
+      "consultation_fee": 1000,
+      "shift": "Evening",
+      "availability_status": "Busy"
+    },
+    {
+      "doctor_id": 208,
+      "doctor_name": "Dr. Meena Pillai",
+      "department": "Gynecology",
+      "specialization": "Gynecologist",
+      "phone": "9840011108",
+      "consultation_fee": 750,
+      "shift": "Evening",
+      "availability_status": "Available"
+    },
+    {
+      "doctor_id": 209,
+      "doctor_name": "Dr. Suresh Babu",
+      "department": "General Medicine",
+      "specialization": "Physician",
+      "phone": "9840011109",
+      "consultation_fee": 500,
+      "shift": "Evening",
+      "availability_status": "Available"
+    },
+    {
+      "doctor_id": 210,
+      "doctor_name": "Dr. Anita Desai",
+      "department": "Dermatology",
+      "specialization": "Dermatologist",
+      "phone": "9840011110",
+      "consultation_fee": 550,
+      "shift": "Morning",
+      "availability_status": "Available"
+    }
+  ],
+  "inspector": null,
+  "error": null
+}

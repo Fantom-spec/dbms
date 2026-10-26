@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "message": "Meta information retrieved",
+  "data": {
+    "role": "Admin",
+    "username": "ADMIN",
+    "roles": [
+      "Admin",
+      "Receptionist",
+      "Triage Nurse",
+      "Doctor",
+      "Billing"
+    ],
+    "sqlite_version": "3.45.0",
+    "db_path": "hospital.db",
+    "counts": {
+      "patient": 12,
+      "doctor": 10,
+      "bed": 12,
+      "medicine": 12,
+      "visit": 20,
+      "prescription": 22,
+      "bill": 11,
+      "audit_log": 12
+    }
+  },
+  "inspector": null,
+  "error": null
+}

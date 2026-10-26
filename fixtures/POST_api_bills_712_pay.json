@@ -1,0 +1,65 @@
+{
+  "ok": true,
+  "message": "Bill paid. Bill ID 712, status: Paid",
+  "data": {
+    "bill_id": 712,
+    "payment_status": "Paid"
+  },
+  "inspector": {
+    "operation": "Pay bill",
+    "component": {
+      "name": "services.pay_bill",
+      "type": "procedure",
+      "oracle_equivalent": "N/A (FR18)"
+    },
+    "tables": [
+      "bill",
+      "audit_log"
+    ],
+    "functions_used": [],
+    "triggers_fired": [
+      {
+        "name": "trg_audit_bill",
+        "event": "AFTER UPDATE",
+        "effect": "audit_log row 20 written"
+      }
+    ],
+    "sql": [
+      "BEGIN IMMEDIATE",
+      "UPDATE bill SET payment_mode = 'UPI', payment_status = 'Paid' WHERE bill_id = 712",
+      "COMMIT"
+    ],
+    "before": {
+      "bill": [
+        {
+          "bill_id": 712,
+          "payment_status": "Pending",
+          "payment_mode": null
+        }
+      ]
+    },
+    "after": {
+      "bill": [
+        {
+          "bill_id": 712,
+          "payment_status": "Paid",
+          "payment_mode": "UPI"
+        }
+      ],
+      "audit_log": [
+        {
+          "log_id": 20
+        }
+      ]
+    },
+    "viva": {
+      "operation": "Pay bill 712 by UPI",
+      "tables": "bill (update), audit_log (insert via trigger)",
+      "component": "Service pay_bill + trigger trg_audit_bill",
+      "effect": "Bill 712 status -> Paid, payment_mode = UPI; audit row written",
+      "result": "Bill 712 paid"
+    },
+    "elapsed_ms": 2.8
+  },
+  "error": null
+}
