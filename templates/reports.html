@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - Smart Hospital Management System{% endblock %}
+
+{% block page_title %}Reports{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+    <!-- Report Selector -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <span>Select Report</span>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Search Reports</label>
+                    <input type="text" class="form-control" id="reportSearch" placeholder="Type to filter...">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Report</label>
+                    <select class="form-select" id="reportSelect" size="10" style="height: auto;">
+                        <option value="">Loading reports...</option>
+                    </select>
+                </div>
+                <div id="reportParamContainer" class="mb-3" style="display: none;">
+                    <label class="form-label" id="reportParamLabel">Parameter</label>
+                    <input type="text" class="form-control" id="reportParam" placeholder="Enter parameter value">
+                </div>
+                <div class="d-grid">
+                    <button class="btn btn-primary" id="runReportBtn" disabled>
+                        <i class="bi bi-play"></i> Run Report
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Info -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <span>Report Details</span>
+            </div>
+            <div class="card-body" id="reportInfo">
+                <p class="text-muted small">Select a report to see details.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Results -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span id="reportResultTitle">Report Results</span>
+                <button class="btn btn-sm btn-outline-secondary" id="copySqlBtn" style="display: none;">
+                    <i class="bi bi-clipboard"></i> Copy SQL
+                </button>
+            </div>
+            <div class="card-body">
+                <!-- SQL Block -->
+                <div id="reportSqlContainer" class="mb-3" style="display: none;">
+                    <label class="form-label small">SQL Query</label>
+                    <pre class="sql-block" id="reportSql"></pre>
+                </div>
+
+                <!-- Chart -->
+                <div id="reportChartContainer" class="mb-3" style="display: none;">
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="reportChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Results Table -->
+                <div class="table-responsive" id="reportTableContainer"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module" src="{{ url_for('static', filename='js/pages/reports.js') }}"></script>
+{% endblock %}

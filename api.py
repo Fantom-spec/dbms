@@ -101,7 +101,8 @@ def _handle_error(e, operation: str = "Operation"):
 @api_bp.route('/meta', methods=['GET'])
 def meta():
     try:
-        return get_dashboard(g.db)
+        data = get_dashboard(g.db)
+        return _envelope(True, "Dashboard data retrieved", data)
     except Exception as e:
         return _handle_error(e, "meta")
 
@@ -141,7 +142,8 @@ def reset():
 @api_bp.route('/lookups', methods=['GET'])
 def lookups():
     try:
-        return get_lookups(g.db)
+        data = get_lookups(g.db)
+        return _envelope(True, "Lookups retrieved", data)
     except Exception as e:
         return _handle_error(e, "lookups")
 
@@ -149,7 +151,8 @@ def lookups():
 @api_bp.route('/dashboard', methods=['GET'])
 def dashboard():
     try:
-        return get_dashboard(g.db)
+        data = get_dashboard(g.db)
+        return _envelope(True, "Dashboard data retrieved", data)
     except Exception as e:
         return _handle_error(e, "dashboard")
 

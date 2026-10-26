@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Smart Hospital Management System{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="app-wrapper">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h4 class="mb-0"><i class="bi bi-hospital"></i> Smart Hospital</h4>
+                <small class="text-muted">Management System</small>
+            </div>
+            <nav class="sidebar-nav">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('views.dashboard') }}" data-page="dashboard">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('views.patients') }}" data-page="patients">
+                            <i class="bi bi-people"></i> Patients
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('views.appointments') }}" data-page="appointments">
+                            <i class="bi bi-calendar-check"></i> Appointments
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('views.emergency') }}" data-page="emergency">
+                            <i class="bi bi-exclamation-triangle"></i> Emergency
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('views.beds') }}" data-page="beds">
+                            <i class="bi bi-bed"></i> Beds
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('views.pharmacy') }}" data-page="pharmacy">
+                            <i class="bi bi-capsule"></i> Pharmacy
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('views.billing') }}" data-page="billing">
+                            <i class="bi bi-cash-stack"></i> Billing
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('views.reports') }}" data-page="reports">
+                            <i class="bi bi-bar-chart"></i> Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('views.audit') }}" data-page="audit">
+                            <i class="bi bi-journal-text"></i> Audit Log
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('views.demo') }}" data-page="demo">
+                            <i class="bi bi-play-circle"></i> Guided Demo
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('views.schema') }}" data-page="schema">
+                            <i class="bi bi-diagram-3"></i> Schema Explorer
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('views.admin') }}" data-page="admin">
+                            <i class="bi bi-gear"></i> Admin
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-wrapper">
+            <!-- Top Bar -->
+            <header class="topbar">
+                <button class="btn btn-sm btn-outline-secondary sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                    <i class="bi bi-list"></i>
+                </button>
+                <div class="topbar-center">
+                    <h5 class="mb-0 page-title">{% block page_title %}Dashboard{% endblock %}</h5>
+                </div>
+                <div class="topbar-right">
+                    <!-- Role Switcher -->
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="roleDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-person-badge"></i> <span id="currentRole">Admin</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="roleDropdown">
+                            <li><a class="dropdown-item" href="#" data-role="Admin">Admin</a></li>
+                            <li><a class="dropdown-item" href="#" data-role="Receptionist">Receptionist</a></li>
+                            <li><a class="dropdown-item" href="#" data-role="Triage Nurse">Triage Nurse</a></li>
+                            <li><a class="dropdown-item" href="#" data-role="Doctor">Doctor</a></li>
+                            <li><a class="dropdown-item" href="#" data-role="Billing">Billing</a></li>
+                        </ul>
+                    </div>
+                    <!-- Inspector Switch -->
+                    <div class="form-check form-switch ms-2">
+                        <input class="form-check-input" type="checkbox" id="inspectorSwitch" role="switch">
+                        <label class="form-check-label small" for="inspectorSwitch">Always Show Inspector</label>
+                    </div>
+                    <!-- Reset Button -->
+                    <button class="btn btn-sm btn-outline-danger ms-2" id="resetBtn" title="Reset demo database">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    </button>
+                </div>
+            </header>
+
+            <!-- Toast Container -->
+            <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+            <!-- Main Content Area -->
+            <main class="main-content" id="mainContent">
+                {% block content %}{% endblock %}
+            </main>
+
+            <!-- Inspector Panel (Global) -->
+            <div class="inspector-panel" id="inspectorPanel" role="region" aria-label="Transaction Inspector">
+                <div class="inspector-header">
+                    <h6 class="mb-0"><i class="bi bi-search"></i> Transaction Inspector</h6>
+                    <button class="btn btn-sm btn-outline-secondary" id="inspectorClose" aria-label="Close inspector">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                <div class="inspector-body" id="inspectorBody"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/chart.js/chart.umd.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/mermaid/mermaid.min.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/api.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/toast.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/tables.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

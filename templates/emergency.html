@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Emergency - Smart Hospital Management System{% endblock %}
+
+{% block page_title %}Emergency{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+    <!-- Register Emergency Form -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <span><i class="bi bi-exclamation-triangle-fill text-danger"></i> Register Emergency Case</span>
+            </div>
+            <div class="card-body">
+                <form id="registerEmergencyForm">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Patient <span class="text-danger">*</span></label>
+                            <select class="form-select" name="patient_id" id="emgPatientId" required>
+                                <option value="">Select patient...</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Complaint <span class="text-danger">*</span></label>
+                            <textarea class="form-control" name="complaint" rows="2" required placeholder="e.g., Chest pain, difficulty breathing"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Triage Level <span class="text-danger">*</span></label>
+                            <select class="form-select" name="triage_level" id="emgTriageLevel" required>
+                                <option value="">Select triage level...</option>
+                                <option value="1">1 - Critical (Immediate)</option>
+                                <option value="2">2 - Very Urgent (10 min)</option>
+                                <option value="3">3 - Urgent (30 min)</option>
+                                <option value="4">4 - Minor (120 min)</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Arrival Time (optional)</label>
+                            <input type="datetime-local" class="form-control" name="arrival" id="emgArrival">
+                            <div class="form-text">Defaults to current time</div>
+                        </div>
+                    </div>
+                    <div class="d-grid mt-3">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-plus-circle"></i> Register Emergency
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Triage Legend -->
+        <div class="card mt-3">
+            <div class="card-header">Triage Levels</div>
+            <div class="card-body">
+                <div class="d-flex flex-column gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge badge-triage-1" style="width: 80px;">Critical</span>
+                        <small>Immediate life-saving intervention</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge badge-triage-2" style="width: 80px;">Very Urgent</span>
+                        <small>Severe condition, seen within 10 min</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge badge-triage-3" style="width: 80px;">Urgent</span>
+                        <small>Stable but needs care within 30 min</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge badge-triage-4" style="width: 80px;">Minor</span>
+                        <small>Non-urgent, seen within 2 hours</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Emergency Queue -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span>Emergency Waiting Queue</span>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary" id="refreshQueueBtn">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                    <div class="form-check form-switch mt-1">
+                        <input class="form-check-input" type="checkbox" id="autoRefreshQueue" checked>
+                        <label class="form-check-label small" for="autoRefreshQueue">Auto (10s)</label>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="emergencyQueueContainer"></div>
+
+                <!-- Cursor Output -->
+                <div class="mt-4" id="cursorOutputContainer" style="display: none;">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span>Cursor Output (DBMS_OUTPUT)</span>
+                            <button class="btn btn-sm btn-outline-secondary" id="toggleCursorBtn">
+                                <i class="bi bi-chevron-down" id="cursorChevron"></i>
+                            </button>
+                        </div>
+                        <div class="card-body p-0" id="cursorContent" style="display: none;">
+                            <pre class="mb-0 p-3 bg-dark text-light" style="font-size: 0.8rem; max-height: 300px; overflow: auto;" id="cursorLines"></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module" src="{{ url_for('static', filename='js/pages/emergency.js') }}"></script>
+{% endblock %}

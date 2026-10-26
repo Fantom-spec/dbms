@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - Smart Hospital Management System{% endblock %}
+
+{% block page_title %}Admin{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs" id="adminTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabDoctors" type="button" role="tab">
+                            <i class="bi bi-person-badge"></i> Doctors
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabMedicines" type="button" role="tab">
+                            <i class="bi bi-capsule"></i> Medicines
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabBeds" type="button" role="tab">
+                            <i class="bi bi-bed"></i> Beds
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body tab-content p-3" id="adminTabContent">
+                <!-- Doctors Tab -->
+                <div class="tab-pane fade show active" id="tabDoctors" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6>Doctors</h6>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addDoctorModal">
+                            <i class="bi bi-plus"></i> Add Doctor
+                        </button>
+                    </div>
+                    <div class="table-responsive" id="doctorsTableContainer"></div>
+                </div>
+
+                <!-- Medicines Tab -->
+                <div class="tab-pane fade" id="tabMedicines" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6>Medicines</h6>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addMedicineAdminModal">
+                            <i class="bi bi-plus"></i> Add Medicine
+                        </button>
+                    </div>
+                    <div class="table-responsive" id="medicinesAdminTableContainer"></div>
+                </div>
+
+                <!-- Beds Tab -->
+                <div class="tab-pane fade" id="tabBeds" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6>Beds</h6>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addBedAdminModal">
+                            <i class="bi bi-plus"></i> Add Bed
+                        </button>
+                    </div>
+                    <div class="table-responsive" id="bedsAdminTableContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Doctor Modal -->
+<div class="modal fade" id="addDoctorModal" tabindex="-1" aria-labelledby="addDoctorModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addDoctorModalLabel"><i class="bi bi-person-plus"></i> Add Doctor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addDoctorForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Doctor Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="doctor_name" required placeholder="Dr. Name">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Department <span class="text-danger">*</span></label>
+                        <select class="form-select" name="department" required>
+                            <option value="">Select department...</option>
+                            <option value="Cardiology">Cardiology</option>
+                            <option value="General Medicine">General Medicine</option>
+                            <option value="Emergency">Emergency</option>
+                            <option value="Orthopedics">Orthopedics</option>
+                            <option value="Neurology">Neurology</option>
+                            <option value="Pediatrics">Pediatrics</option>
+                            <option value="Gynecology">Gynecology</option>
+                            <option value="Dermatology">Dermatology</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Specialization</label>
+                        <input type="text" class="form-control" name="specialization" placeholder="e.g., Interventional Cardiology">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Consultation Fee (₹) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" name="consultation_fee" required min="1" step="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Shift <span class="text-danger">*</span></label>
+                        <select class="form-select" name="shift" required>
+                            <option value="">Select shift...</option>
+                            <option value="Morning">Morning</option>
+                            <option value="Evening">Evening</option>
+                            <option value="Night">Night</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Doctor</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Doctor Modal -->
+<div class="modal fade" id="editDoctorModal" tabindex="-1" aria-labelledby="editDoctorModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editDoctorModalLabel"><i class="bi bi-pencil"></i> Edit Doctor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editDoctorForm">
+                <input type="hidden" name="doctor_id" id="editDoctorId">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Doctor Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="doctor_name" id="editDoctorName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Department <span class="text-danger">*</span></label>
+                        <select class="form-select" name="department" id="editDoctorDepartment" required>
+                            <option value="Cardiology">Cardiology</option>
+                            <option value="General Medicine">General Medicine</option>
+                            <option value="Emergency">Emergency</option>
+                            <option value="Orthopedics">Orthopedics</option>
+                            <option value="Neurology">Neurology</option>
+                            <option value="Pediatrics">Pediatrics</option>
+                            <option value="Gynecology">Gynecology</option>
+                            <option value="Dermatology">Dermatology</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Specialization</label>
+                        <input type="text" class="form-control" name="specialization" id="editDoctorSpecialization">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Consultation Fee (₹) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" name="consultation_fee" id="editDoctorFee" required min="1" step="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Shift <span class="text-danger">*</span></label>
+                        <select class="form-select" name="shift" id="editDoctorShift" required>
+                            <option value="Morning">Morning</option>
+                            <option value="Evening">Evening</option>
+                            <option value="Night">Night</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Medicine Modal (Admin) -->
+<div class="modal fade" id="addMedicineAdminModal" tabindex="-1" aria-labelledby="addMedicineAdminModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addMedicineAdminModalLabel"><i class="bi bi-plus-circle"></i> Add Medicine</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addMedicineAdminForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Medicine Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="medicine_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Stock Quantity <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" name="stock_quantity" required min="0" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Price per Unit (₹) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" name="price_per_unit" required min="0.01" step="0.01">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Medicine</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Bed Modal (Admin) -->
+<div class="modal fade" id="addBedAdminModal" tabindex="-1" aria-labelledby="addBedAdminModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addBedAdminModalLabel"><i class="bi bi-plus-circle"></i> Add Bed</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addBedAdminForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Ward Type <span class="text-danger">*</span></label>
+                        <select class="form-select" name="ward_type" required>
+                            <option value="">Select ward...</option>
+                            <option value="General">General</option>
+                            <option value="Private">Private</option>
+                            <option value="ICU">ICU</option>
+                            <option value="Emergency">Emergency</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Daily Charge (₹) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" name="daily_charge" required min="0" step="0.01">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Bed</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Set Bed Status Modal -->
+<div class="modal fade" id="setBedStatusModal" tabindex="-1" aria-labelledby="setBedStatusModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="setBedStatusModalLabel"><i class="bi bi-pencil"></i> Set Bed Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="setBedStatusForm">
+                <input type="hidden" name="bed_id" id="setBedStatusId">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Bed ID</label>
+                        <input type="text" class="form-control" id="setBedStatusDisplay" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status <span class="text-danger">*</span></label>
+                        <select class="form-select" name="status" id="setBedStatusSelect" required>
+                            <option value="Free">Free</option>
+                            <option value="Occupied">Occupied</option>
+                            <option value="Cleaning">Cleaning</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module" src="{{ url_for('static', filename='js/pages/admin.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Guided Demo - Smart Hospital Management System{% endblock %}
+
+{% block page_title %}Guided Demo{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+    <!-- Stepper Sidebar -->
+    <div class="col-lg-3">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Demo Steps</span>
+                <button class="btn btn-sm btn-outline-danger" id="resetDemoBtn">
+                    <i class="bi bi-arrow-clockwise"></i> Reset Demo
+                </button>
+            </div>
+            <div class="card-body p-0" style="max-height: 70vh; overflow-y: auto;">
+                <div class="list-group list-group-flush" id="demoStepper">
+                    <div class="text-center p-3 text-muted">Loading demo steps...</div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-success" id="runAllBtn">
+                        <i class="bi bi-play-fill"></i> Run All Steps
+                    </button>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="pauseBetweenSteps" checked>
+                        <label class="form-check-label small" for="pauseBetweenSteps">Pause between steps</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Demo Panel -->
+    <div class="col-lg-9">
+        <div class="card h-100">
+            <div class="card-header" id="demoStepHeader">
+                <h5 class="mb-0">Select a step from the left to begin</h5>
+            </div>
+            <div class="card-body" style="max-height: 70vh; overflow-y: auto;">
+                <div id="demoStepContent" class="text-center py-5 text-muted">
+                    <i class="bi bi-play-circle" style="font-size: 3rem;"></i>
+                    <p class="mt-2">Choose a demo step from the sidebar to see details and run it.</p>
+                </div>
+            </div>
+            <div class="card-footer" id="demoStepFooter" style="display: none;">
+                <div class="d-flex gap-2 justify-content-end">
+                    <button class="btn btn-secondary" id="prevStepBtn"><i class="bi bi-chevron-left"></i> Previous</button>
+                    <button class="btn btn-primary" id="runStepBtn"><i class="bi bi-play"></i> Run Step</button>
+                    <button class="btn btn-success" id="nextStepBtn">Next <i class="bi bi-chevron-right"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inspector for Demo (shown inline when not using global) -->
+        <div class="card mt-3" id="demoInspectorContainer" style="display: none;">
+            <div class="card-header">
+                <span>Transaction Inspector</span>
+            </div>
+            <div class="card-body p-0" id="demoInspectorBody"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Presenter Mode Toggle (hidden by default) -->
+<div class="fixed-bottom end-0 p-3" style="z-index: 1050;">
+    <div class="card" style="max-width: 300px;">
+        <div class="card-body py-2">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="presenterMode">
+                <label class="form-check-label small" for="presenterMode">Presenter Mode (large fonts, hide sidebar)</label>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module" src="{{ url_for('static', filename='js/pages/demo.js') }}"></script>
+{% endblock %}

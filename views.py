@@ -1,6 +1,6 @@
 """
-Temporary views.py — placeholder for Person 2's routes.
-This allows the app to boot in Phase 1 before Person 2 implements the real views.
+Frontend views for Smart Hospital Management System.
+All dynamic data comes from /api/* endpoints via fetch().
 """
 from flask import Blueprint, render_template
 
@@ -8,60 +8,60 @@ views_bp = Blueprint('views', __name__)
 
 
 @views_bp.route('/')
-def index():
-    return render_template('base.html')  # Will fail until Person 2 creates templates
+def dashboard():
+    return render_template('dashboard.html')
 
 
 @views_bp.route('/patients')
 def patients():
-    return "Patients page - placeholder"
+    return render_template('patients.html')
 
 
 @views_bp.route('/appointments')
 def appointments():
-    return "Appointments page - placeholder"
+    return render_template('appointments.html')
 
 
 @views_bp.route('/emergency')
 def emergency():
-    return "Emergency page - placeholder"
+    return render_template('emergency.html')
 
 
 @views_bp.route('/beds')
 def beds():
-    return "Beds page - placeholder"
+    return render_template('beds.html')
 
 
 @views_bp.route('/pharmacy')
 def pharmacy():
-    return "Pharmacy page - placeholder"
+    return render_template('pharmacy.html')
 
 
 @views_bp.route('/billing')
 def billing():
-    return "Billing page - placeholder"
+    return render_template('billing.html')
 
 
 @views_bp.route('/reports')
 def reports():
-    return "Reports page - placeholder"
+    return render_template('reports.html')
 
 
 @views_bp.route('/audit')
 def audit():
-    return "Audit page - placeholder"
+    return render_template('audit.html')
 
 
 @views_bp.route('/demo')
 def demo():
-    return "Demo page - placeholder"
+    return render_template('demo.html')
 
 
 @views_bp.route('/schema')
 def schema():
-    return "Schema page - placeholder"
+    return render_template('schema.html')
 
 
 @views_bp.route('/admin')
 def admin():
-    return "Admin page - placeholder"
+    return render_template('admin.html')

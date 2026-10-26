@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Appointments & Visits - Smart Hospital Management System{% endblock %}
+
+{% block page_title %}Appointments & Visits{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+    <!-- Book Appointment Form -->
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header">
+                <span>Book New Appointment</span>
+            </div>
+            <div class="card-body">
+                <form id="bookAppointmentForm">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Patient <span class="text-danger">*</span></label>
+                            <select class="form-select" name="patient_id" id="apptPatientId" required>
+                                <option value="">Select patient...</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Doctor <span class="text-danger">*</span></label>
+                            <select class="form-select" name="doctor_id" id="apptDoctorId" required>
+                                <option value="">Select doctor...</option>
+                            </select>
+                            <div id="doctorInfo" class="form-text mt-1"></div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Date & Time <span class="text-danger">*</span></label>
+                            <input type="datetime-local" class="form-control" name="slot" id="apptSlot" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Complaint <span class="text-danger">*</span></label>
+                            <textarea class="form-control" name="complaint" rows="2" required placeholder="Reason for visit"></textarea>
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-calendar-plus"></i> Book Appointment
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="retryLastSlotBtn" disabled>
+                            <i class="bi bi-arrow-repeat"></i> Try Same Slot Again
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visits Table -->
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span>Appointments & Visits</span>
+                <div class="btn-group btn-group-sm" role="group">
+                    <input type="radio" class="btn-check" name="visitTypeFilter" id="filterAll" value="" checked>
+                    <label class="btn btn-outline-primary" for="filterAll">All</label>
+                    <input type="radio" class="btn-check" name="visitTypeFilter" id="filterAppt" value="Appointment">
+                    <label class="btn btn-outline-primary" for="filterAppt">Appointments</label>
+                    <input type="radio" class="btn-check" name="visitTypeFilter" id="filterEmergency" value="Emergency">
+                    <label class="btn btn-outline-primary" for="filterEmergency">Emergency</label>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" id="visitsTableContainer"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Visit Summary Modal -->
+<div class="modal fade" id="visitSummaryModal" tabindex="-1" aria-labelledby="visitSummaryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="visitSummaryModalLabel"><i class="bi bi-file-text"></i> Visit Summary</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="visitSummaryContent"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module" src="{{ url_for('static', filename='js/pages/appointments.js') }}"></script>
+{% endblock %}

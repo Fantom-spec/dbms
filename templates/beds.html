@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Beds - Smart Hospital Management System{% endblock %}
+
+{% block page_title %}Beds{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+    <!-- Bed Grid by Ward -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span>Bed Status by Ward</span>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-sm btn-outline-primary" id="refreshBedsBtn">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addBedModal">
+                        <i class="bi bi-plus"></i> Add Bed
+                    </button>
+                </div>
+            </div>
+            <div class="card-body" id="bedWardsContainer"></div>
+        </div>
+    </div>
+
+    <!-- Admitted Patients -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <span>Admitted Patients</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" id="admittedPatientsTable"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Bed Modal -->
+<div class="modal fade" id="addBedModal" tabindex="-1" aria-labelledby="addBedModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addBedModalLabel"><i class="bi bi-plus-circle"></i> Add New Bed</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addBedForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Ward Type <span class="text-danger">*</span></label>
+                        <select class="form-select" name="ward_type" id="bedWardType" required>
+                            <option value="">Select ward...</option>
+                            <option value="General">General</option>
+                            <option value="Private">Private</option>
+                            <option value="ICU">ICU</option>
+                            <option value="Emergency">Emergency</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Daily Charge (₹) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" name="daily_charge" id="bedDailyCharge" required min="0" step="0.01">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Bed</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Allot Bed Modal -->
+<div class="modal fade" id="allotBedModal" tabindex="-1" aria-labelledby="allotBedModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="allotBedModalLabel"><i class="bi bi-bed"></i> Allot Bed</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="allotBedForm">
+                <input type="hidden" name="visit_id" id="allotBedVisitId">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Visit ID</label>
+                        <input type="text" class="form-control" id="allotBedVisitDisplay" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ward Type <span class="text-danger">*</span></label>
+                        <select class="form-select" name="ward_type" id="allotBedWardType" required>
+                            <option value="">Select ward...</option>
+                            <option value="General">General</option>
+                            <option value="Private">Private</option>
+                            <option value="ICU">ICU</option>
+                            <option value="Emergency">Emergency</option>
+                        </select>
+                        <div class="form-text" id="freeBedsInfo"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Allot Bed</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Discharge Modal -->
+<div class="modal fade" id="dischargeModal" tabindex="-1" aria-labelledby="dischargeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="dischargeModalLabel"><i class="bi bi-door-open"></i> Discharge Patient</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to discharge the patient from visit <strong id="dischargeVisitId"></strong>?</p>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> The bed will be marked as <strong>Cleaning</strong> and will need to be manually marked as <strong>Free</strong> after cleaning.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDischargeBtn">
+                    <i class="bi bi-check-circle"></i> Confirm Discharge
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module" src="{{ url_for('static', filename='js/pages/beds.js') }}"></script>
+{% endblock %}
