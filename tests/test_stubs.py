@@ -3,17 +3,23 @@ Test that all API endpoints have corresponding fixtures in stub mode.
 """
 import os
 import pytest
+import importlib
 
-# Set stub mode BEFORE importing app
+# Ensure stub mode
 os.environ['FLASK_API_MODE'] = 'stub'
 
-from app import create_app
+import app
+import config
 
 
 @pytest.fixture
 def client():
-    app = create_app()
-    with app.test_client() as client:
+    # Force reload and ensure stub mode
+    os.environ['FLASK_API_MODE'] = 'stub'
+    importlib.reload(config)
+    importlib.reload(app)
+    app_instance = app.create_app()
+    with app_instance.test_client() as client:
         yield client
 
 
