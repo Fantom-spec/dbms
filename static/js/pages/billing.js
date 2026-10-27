@@ -3,7 +3,7 @@
  * Generate bills, view bills, record payments, pending bills cursor
  */
 
-import { get, post, handle } from '../api.js';
+import { get, post, handle, preventDoubleSubmit } from '../api.js';
 import { renderTable } from '../tables.js';
 import { openInspector, formatCurrency, getBillStatusBadgeClass, showEmptyState } from '../app.js';
 
@@ -171,13 +171,13 @@ function setupForms() {
     // Generate Bill Form
     const genBillForm = document.getElementById('generateBillForm');
     if (genBillForm) {
-        genBillForm.addEventListener('submit', generateBill);
+        genBillForm.addEventListener('submit', preventDoubleSubmit(genBillForm, generateBill));
     }
 
     // Pay Bill Form
     const payBillForm = document.getElementById('payBillForm');
     if (payBillForm) {
-        payBillForm.addEventListener('submit', payBill);
+        payBillForm.addEventListener('submit', preventDoubleSubmit(payBillForm, payBill));
     }
 
     // Bill Status Filter
@@ -199,9 +199,8 @@ function setupForms() {
     }
 }
 
-async function generateBill(e) {
-    e.preventDefault();
-    const form = e.target;
+async function generateBill() {
+    const form = document.getElementById('generateBillForm');
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
     data.visit_id = parseInt(data.visit_id, 10);
@@ -263,9 +262,8 @@ function openPayBillModal(billId, amount) {
     modal.show();
 }
 
-async function payBill(e) {
-    e.preventDefault();
-    const form = e.target;
+async function payBill() {
+    const form = document.getElementById('payBillForm');
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
     data.bill_id = parseInt(data.bill_id, 10);

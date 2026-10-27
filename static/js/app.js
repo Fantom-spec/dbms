@@ -3,7 +3,8 @@
  * Handles global UI: sidebar, role switcher, reset, inspector panel, navigation
  */
 
-import { callApi, post, get, setCurrentRole, handle } from './api.js';
+import { callApi, post, get, setCurrentRole, handle, formatCurrency } from './api.js';
+import { openInspector, closeInspector } from './inspector.js';
 
 // Global state
 let currentRole = 'Admin';
@@ -13,6 +14,7 @@ let inspectorBody = null;
 
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
+    detectIconFont();
     initSidebar();
     initRoleSwitcher();
     initInspectorSwitch();
@@ -165,7 +167,7 @@ function initResetButton() {
             resetBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Resetting...';
 
             try {
-                const envelope = await post('/reset', {});
+                const envelope = await post('/reset', { confirm: true });
                 handle(envelope, {
                     successToast: true,
                     errorToast: true,
@@ -208,29 +210,6 @@ function initInspectorPanel() {
     }
 }
 
-/**
- * Open inspector panel with data
- */
-export function openInspector(inspectorData) {
-    if (!inspectorPanel || !inspectorBody) return;
-
-    if (window.inspector && typeof window.inspector.render === 'function') {
-        window.inspector.render(inspectorData, inspectorBody);
-    } else {
-        inspectorBody.innerHTML = '<div class="text-muted small">Inspector module not loaded</div>';
-    }
-
-    inspectorPanel.classList.add('open');
-}
-
-/**
- * Close inspector panel
- */
-export function closeInspector() {
-    if (inspectorPanel) {
-        inspectorPanel.classList.remove('open');
-    }
-}
 
 /**
  * Update inspector visibility based on switch
@@ -409,6 +388,15 @@ export {
     alwaysShowInspector,
     openInspector,
     closeInspector,
+    formatCurrency,
     switchRole,
     loadMeta
 };
+
+/** Degrade icons gracefully when the Bootstrap Icons font files are missing. */
+function detectIconFont() {
+    if (!document.fonts || !document.fonts.load) return;
+    document.fonts.load('1em bootstrap-icons', '\uF3E8').then((faces) => {
+        if (!faces || faces.length === 0) document.documentElement.classList.add('no-icon-font');
+    }).catch(() => document.documentElement.classList.add('no-icon-font'));
+}

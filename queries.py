@@ -5,8 +5,10 @@ Implements the 19 Review II queries adapted to SQLite.
 import sqlite3
 from typing import List, Dict, Any, Optional
 
+from errors import NotFoundError
 
-def get_reports_catalogue(conn: sqlite3.Connection) -> Dict:
+
+def _catalogue_envelope(conn: sqlite3.Connection) -> Dict:
     """Get list of all available reports."""
     reports = [
         {"id": "q01", "label": "A", "title": "Visit history of a patient", "concept": "3-table JOIN", "chart": None},
@@ -32,7 +34,7 @@ def get_reports_catalogue(conn: sqlite3.Connection) -> Dict:
     return {"ok": True, "message": "Reports catalogue retrieved", "data": reports}
 
 
-def get_report(conn: sqlite3.Connection, report_id: str, param: Optional[str] = None) -> Dict:
+def _report_envelope(conn: sqlite3.Connection, report_id: str, param: Optional[str] = None) -> Dict:
     """Execute a specific report query and return results with metadata."""
     
     if report_id == "q01":
@@ -473,6 +475,19 @@ def get_report(conn: sqlite3.Connection, report_id: str, param: Optional[str] = 
         }
 
 
-def get_reports(conn: sqlite3.Connection) -> Dict:
-    """Get all reports (for testing)."""
+def get_reports_catalogue(conn: sqlite3.Connection) -> List[Dict]:
+    """The 19 reports as a plain list (the API wraps it in the envelope)."""
+    return _catalogue_envelope(conn)['data']
+
+
+def get_report(conn: sqlite3.Connection, report_id: str, param: Optional[str] = None) -> Dict:
+    """Run one report; returns the contract's data object, raises NotFoundError if unknown."""
+    result = _report_envelope(conn, report_id, param)
+    if not result.get('ok'):
+        raise NotFoundError('REPORT_NOT_FOUND', f'Report {report_id} not found')
+    return result['data']
+
+
+def get_reports(conn: sqlite3.Connection) -> List[Dict]:
+    """Backward compatible alias of get_reports_catalogue."""
     return get_reports_catalogue(conn)

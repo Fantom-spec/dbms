@@ -3,8 +3,8 @@
  * Patient listing, search, register, edit, history, delete
  */
 
-import { get, post, put, del, handle } from '../api.js';
-import { renderTable } from '../tables.js';
+import { get, post, put, del, handle, preventDoubleSubmit } from '../api.js';
+import { renderTable, escapeHtml } from '../tables.js';
 import { openInspector, showLoading, showEmptyState, formatNumber } from '../app.js';
 
 let patientsData = [];
@@ -62,13 +62,13 @@ function renderPatientsTable(data) {
         formatters: {
             actions: (value, row) => `
                 <div class="btn-group btn-group-sm" role="group">
-                    <button class="btn btn-outline-primary view-history" data-id="${row.patient_id}" title="View History">
+                    <button class="btn btn-outline-primary view-history" data-id="${row.patient_id}" title="View History" aria-label="View History">
                         <i class="bi bi-clock-history"></i>
                     </button>
-                    <button class="btn btn-outline-secondary edit-patient" data-id="${row.patient_id}" title="Edit">
+                    <button class="btn btn-outline-secondary edit-patient" data-id="${row.patient_id}" title="Edit" aria-label="Edit Patient">
                         <i class="bi bi-pencil"></i>
                     </button>
-                    <button class="btn btn-outline-danger delete-patient" data-id="${row.patient_id}" title="Delete">
+                    <button class="btn btn-outline-danger delete-patient" data-id="${row.patient_id}" title="Delete" aria-label="Delete Patient">
                         <i class="bi bi-trash"></i>
                     </button>
                 </div>
@@ -125,21 +125,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // Register form
     const registerForm = document.getElementById('registerPatientForm');
     if (registerForm) {
-        registerForm.addEventListener('submit', registerPatient);
+        registerForm.addEventListener('submit', preventDoubleSubmit(registerForm, registerPatient));
     }
 
     // Edit form
     const editForm = document.getElementById('editPatientForm');
     if (editForm) {
-        editForm.addEventListener('submit', submitEditPatient);
+        editForm.addEventListener('submit', preventDoubleSubmit(editForm, submitEditPatient));
     }
 
     loadPatients();
 });
 
-async function registerPatient(e) {
-    e.preventDefault();
-    const form = e.target;
+async function registerPatient() {
+    const form = document.getElementById('registerPatientForm');
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
 
@@ -172,9 +171,8 @@ async function editPatient(id) {
     new bootstrap.Modal(document.getElementById('editPatientModal')).show();
 }
 
-async function submitEditPatient(e) {
-    e.preventDefault();
-    const form = e.target;
+async function submitEditPatient() {
+    const form = document.getElementById('editPatientForm');
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
     const id = data.patient_id;
@@ -196,7 +194,7 @@ async function deletePatient(id) {
     const patient = patientsData.find(p => p.patient_id == id);
     if (!patient) return;
 
-    if (!confirm(`Delete patient "${patient.patient_name}" (ID: ${id})? This will fail if the patient has visits.`)) {
+    if (!confirm(`Delete patient "${escapeHtml(patient.patient_name)}" (ID: ${id})? This will fail if the patient has visits.`)) {
         return;
     }
 

@@ -4,6 +4,7 @@ Uses PRAGMA and sqlite_master to extract metadata.
 """
 import sqlite3
 import re
+from errors import ValidationError, NotFoundError
 from typing import List, Dict, Any, Optional
 
 
@@ -138,7 +139,7 @@ RELATIONSHIPS = [
 VIOLATION_TESTS = [
     {'id': 'v01', 'title': 'Insert patient with an existing phone', 'rule': 'uq_pat_phone (UNIQUE)', 'enforced_by': 'UNIQUE constraint', 'sql': "INSERT INTO patient (patient_name, phone, gender, date_of_birth) VALUES ('Test', '9876500101', 'Male', '2000-01-01')"},
     {'id': 'v02', 'title': 'Insert appointment with a triage level', 'rule': 'chk_visit_triage (CHECK)', 'enforced_by': 'CHECK constraint', 'sql': "INSERT INTO visit (patient_id, doctor_id, visit_type, visit_datetime, triage_level) VALUES (101, 202, 'Appointment', '2026-10-27 10:00:00', 1)"},
-    {'id': 'v03', 'title': 'Second active visit for same doctor and time', 'rule': 'uq_doctor_slot (partial unique index)', 'enforced_by': 'Partial unique index', 'sql': "INSERT INTO visit (patient_id, doctor_id, visit_type, visit_datetime, visit_status) VALUES (101, 202, 'Appointment', '2026-10-27 10:00:00', 'Scheduled')"},
+    {'id': 'v03', 'title': 'Second active visit for same doctor and time', 'rule': 'uq_doctor_slot (partial unique index)', 'enforced_by': 'Partial unique index', 'sql': "INSERT INTO visit (patient_id, doctor_id, visit_type, visit_datetime, visit_status) VALUES (101, 202, 'Appointment', '2026-10-14 10:00:00', 'Scheduled')"},
     {'id': 'v04', 'title': 'Second admitted patient on the same bed', 'rule': 'uq_active_bed (partial unique index)', 'enforced_by': 'Partial unique index', 'sql': "UPDATE visit SET bed_id = 305, visit_status = 'Admitted' WHERE visit_id = 414"},
     {'id': 'v05', 'title': 'Discharge time before admit time', 'rule': 'chk_visit_disch (CHECK)', 'enforced_by': 'CHECK constraint', 'sql': "UPDATE visit SET discharge_time = '2026-10-01 10:00:00' WHERE visit_id = 413"},
     {'id': 'v06', 'title': 'Medicine with price 0', 'rule': 'chk_med_price (CHECK)', 'enforced_by': 'CHECK constraint', 'sql': "INSERT INTO medicine (medicine_name, price_per_unit, stock_quantity) VALUES ('Test', 0, 10)"},
@@ -170,8 +171,8 @@ def get_tables(conn: sqlite3.Connection) -> List[Dict]:
     result = []
     for t in tables:
         name = t['name']
-        row_count = conn.execute(f'SELECT COUNT(*) FROM {name}').fetchone()[0]
-        col_count = len(conn.execute(f'PRAGMA table_info({name})').fetchall())
+        row_count = conn.execute(f'SELECT COUNT(*) FROM "{name}"').fetchone()[0]
+        col_count = len(conn.execute(f'PRAGMA table_info("{name}")').fetchall())
         result.append({'name': name, 'rows': row_count, 'columns': col_count})
     return result
 
@@ -181,10 +182,10 @@ def get_table(conn: sqlite3.Connection, table_name: str, preview: int = 10) -> D
     # Validate table exists
     exists = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table_name,)).fetchone()
     if not exists:
-        raise ValueError(f"Table {table_name} not found")
+        raise NotFoundError('TABLE_NOT_FOUND', f"Table {table_name} not found")
     
     # Get column info
-    cols = conn.execute(f'PRAGMA table_info({table_name})').fetchall()
+    cols = conn.execute(f'PRAGMA table_info("{table_name}")').fetchall()
     columns = []
     for c in cols:
         col_name = c['name']
@@ -205,7 +206,7 @@ def get_table(conn: sqlite3.Connection, table_name: str, preview: int = 10) -> D
                         checks.append(cname)
         
         # Check if part of UNIQUE constraint/index
-        indexes = conn.execute(f'PRAGMA index_list({table_name})').fetchall()
+        indexes = conn.execute(f'PRAGMA index_list("{table_name}")').fetchall()
         for idx in indexes:
             idx_name = idx['name']
             if idx['unique'] == 1:
@@ -219,10 +220,10 @@ def get_table(conn: sqlite3.Connection, table_name: str, preview: int = 10) -> D
             'default': default, 'unique': int(is_unique), 'fk': 0, 'checks': checks
         })
     
-    row_count = conn.execute(f'SELECT COUNT(*) FROM {table_name}').fetchone()[0]
+    row_count = conn.execute(f'SELECT COUNT(*) FROM "{table_name}"').fetchone()[0]
     
-    preview_rows = conn.execute(f'SELECT * FROM {table_name} LIMIT ?', (preview,)).fetchall()
-    preview_cols = [description[0] for description in conn.execute(f'SELECT * FROM {table_name} LIMIT 0').description] if preview_rows else []
+    preview_rows = conn.execute(f'SELECT * FROM "{table_name}" LIMIT ?', (preview,)).fetchall()
+    preview_cols = [description[0] for description in conn.execute(f'SELECT * FROM "{table_name}" LIMIT 0').description] if preview_rows else []
     
     return {
         'columns': columns,
@@ -340,7 +341,7 @@ def get_er(conn: sqlite3.Connection) -> Dict:
     mermaid = ["erDiagram"]
     for t in tables:
         name = t['name']
-        cols = conn.execute(f'PRAGMA table_info({name})').fetchall()
+        cols = conn.execute(f'PRAGMA table_info("{name}")').fetchall()
         pk_cols = [c['name'] for c in cols if c['pk'] == 1]
         fk_cols = {}
         for idx in conn.execute(f'PRAGMA foreign_key_list({name})').fetchall():
@@ -365,32 +366,37 @@ def get_er(conn: sqlite3.Connection) -> Dict:
     return {'mermaid': '\n'.join(mermaid)}
 
 
+def _rollback(conn: sqlite3.Connection) -> None:
+    """Sandbox rollback; first let the inspector capture the 'after' state."""
+    if conn.insp is not None and conn.in_transaction:
+        conn.insp.mark_after()
+    if conn.in_transaction:
+        conn.execute('ROLLBACK')
+
+
 def get_violations(conn: sqlite3.Connection) -> List[Dict]:
     """Get violation test cases."""
     return VIOLATION_TESTS
 
 
 def run_violation(conn: sqlite3.Connection, violation_id: str) -> Dict:
-    """Run a violation test (always rolled back)."""
+    """Run a violation test. The statement is ALWAYS rolled back, even if it succeeds."""
     violation = next((v for v in VIOLATION_TESTS if v['id'] == violation_id), None)
     if not violation:
-        raise ValueError(f"Violation {violation_id} not found")
-    
+        raise NotFoundError('VIOLATION_NOT_FOUND', f"Violation {violation_id} not found")
+
     conn.execute('BEGIN')
     try:
         conn.execute(violation['sql'])
-        conn.execute('COMMIT')
         blocked = False
         error = None
-    except sqlite3.IntegrityError as e:
-        conn.execute('ROLLBACK')
+    except sqlite3.Error as e:
         blocked = True
         error = str(e)
-    except Exception as e:
-        conn.execute('ROLLBACK')
-        blocked = True
-        error = str(e)
-    
+    finally:
+        if conn.in_transaction:
+            _rollback(conn)      # never keep what a "violation" test did
+
     return {
         'blocked': blocked,
         'error': error,
@@ -428,7 +434,7 @@ def run_trigger_demo(conn: sqlite3.Connection, logical_name: str) -> Dict:
             
             after_delete = conn.execute('SELECT stock_quantity FROM medicine WHERE medicine_id = 506').fetchone()['stock_quantity']
             
-            conn.execute('ROLLBACK')
+            _rollback(conn)
             
             return {
                 'effect': f"Stock reduced from {initial} to {after_insert} on INSERT; restored to {after_delete} on DELETE",
@@ -450,7 +456,7 @@ def run_trigger_demo(conn: sqlite3.Connection, logical_name: str) -> Dict:
             conn.execute("UPDATE visit SET visit_status = 'Cancelled' WHERE visit_id = ?", (visit_id,))
             conn.execute("DELETE FROM visit WHERE visit_id = ?", (visit_id,))
             
-            conn.execute('ROLLBACK')
+            _rollback(conn)
             return {'effect': "Audit rows created for INSERT, UPDATE, DELETE on visit"}
         
         elif logical_name == 'trg_audit_bill':
@@ -469,7 +475,7 @@ def run_trigger_demo(conn: sqlite3.Connection, logical_name: str) -> Dict:
             
             conn.execute("UPDATE bill SET payment_mode = 'Cash', payment_status = 'Paid' WHERE bill_id = ?", (bill_id,))
             
-            conn.execute('ROLLBACK')
+            _rollback(conn)
             return {'effect': "Audit rows created for bill INSERT and UPDATE"}
         
         elif logical_name == 'trg_audit_patient':
@@ -482,7 +488,7 @@ def run_trigger_demo(conn: sqlite3.Connection, logical_name: str) -> Dict:
             conn.execute("UPDATE patient SET patient_name = 'Updated Demo' WHERE patient_id = ?", (patient_id,))
             conn.execute("DELETE FROM patient WHERE patient_id = ?", (patient_id,))
             
-            conn.execute('ROLLBACK')
+            _rollback(conn)
             return {'effect': "Audit rows created for INSERT, UPDATE, DELETE on patient"}
         
         elif logical_name == 'trg_doctor_status':
@@ -498,61 +504,83 @@ def run_trigger_demo(conn: sqlite3.Connection, logical_name: str) -> Dict:
             conn.execute("UPDATE visit SET visit_status = 'Under Treatment' WHERE visit_id = ?", (visit_id,))
             status1 = conn.execute("SELECT availability_status FROM doctor WHERE doctor_id = 201").fetchone()['availability_status']
             
-            conn.execute("UPDATE visit SET visit_status = 'Admitted' WHERE visit_id = ?", (visit_id,))
+            conn.execute("UPDATE visit SET visit_status = 'Discharged' WHERE visit_id = ?", (visit_id,))
             status2 = conn.execute("SELECT availability_status FROM doctor WHERE doctor_id = 201").fetchone()['availability_status']
             
-            conn.execute('ROLLBACK')
+            _rollback(conn)
             return {'effect': f"Doctor status: Available -> {status1} -> {status2}"}
         
         elif logical_name == 'trg_protect_audit':
             # Try to update and delete audit row
-            blocked_update = False
-            blocked_delete = False
-            
-            conn.execute("UPDATE audit_log SET description = 'tampered' WHERE log_id = 1")
-            blocked_update = True
-            
-            conn.execute("DELETE FROM audit_log WHERE log_id = 1")
-            blocked_delete = True
-            
-            conn.execute('ROLLBACK')
-            return {'effect': "Both UPDATE and DELETE on audit_log blocked by trigger"}
-        
+            results = {}
+            for label, stmt in (('UPDATE', "UPDATE audit_log SET description = 'tampered' WHERE log_id = 1"),
+                                ('DELETE', "DELETE FROM audit_log WHERE log_id = 1")):
+                try:
+                    conn.execute(stmt)
+                    results[label] = 'NOT blocked'
+                except sqlite3.Error as e:
+                    results[label] = f'blocked: {e}'
+            _rollback(conn)
+            return {'effect': f"UPDATE {results['UPDATE']}; DELETE {results['DELETE']}", 'details': results}
+
         else:
-            return {'effect': f"Demo for {logical_name} not implemented"}
+            _rollback(conn)
+            raise NotFoundError('TRIGGER_NOT_FOUND', f"No demo for trigger {logical_name}")
     
-    except Exception as e:
-        conn.execute('ROLLBACK')
+    except Exception:
+        if conn.in_transaction:
+            _rollback(conn)
         raise
 
 
-def execute_sql(conn: sqlite3.Connection, sql: str) -> Dict:
-    """Execute a SELECT/WITH query safely."""
-    # Safety checks
-    sql_stripped = sql.strip()
-    if not sql_stripped.upper().startswith(('SELECT', 'WITH')):
-        raise ValueError("Only SELECT or WITH queries allowed")
-    
-    if ';' in sql_stripped.rstrip(';'):
-        raise ValueError("Multiple statements not allowed")
-    
-    # Use a separate connection with query_only for safety
-    # For simplicity, we use the same connection but with limits
-    conn.execute('PRAGMA query_only = ON')
+_SQL_FORBIDDEN_ACTIONS = None
+
+
+def _authorizer(action, arg1, arg2, dbname, source):
+    """Allow only reading: SELECT, reading columns, and (pure) function calls."""
+    allowed = {sqlite3.SQLITE_SELECT, sqlite3.SQLITE_READ, sqlite3.SQLITE_FUNCTION,
+               getattr(sqlite3, 'SQLITE_RECURSIVE', 33)}
+    return sqlite3.SQLITE_OK if action in allowed else sqlite3.SQLITE_DENY
+
+
+def execute_sql(db_path, sql: str, max_rows: int = 500, timeout_s: float = 3.0) -> Dict:
+    """
+    Run a read-only query for the SQL console.
+
+    Defence in depth: (1) text check, (2) a *separate* connection opened with
+    ``mode=ro`` so writes are impossible, (3) a SQLite authorizer that only permits
+    SELECT/READ/FUNCTION, (4) a progress handler that aborts runaway queries,
+    (5) a row cap.
+    """
+    import time
+    from db.connection import get_connection
+    if not isinstance(sql, str) or not sql.strip():
+        raise ValidationError('Enter a SELECT query')
+    text = sql.strip().rstrip(';').strip()
+    if not text.upper().startswith(('SELECT', 'WITH')):
+        raise ValidationError('Only SELECT or WITH queries are allowed')
+    if ';' in text:
+        raise ValidationError('Only one statement is allowed')
+    if len(text) > 5000:
+        raise ValidationError('Query is too long')
+    ro = get_connection(db_path, read_only=True)
     try:
-        cur = conn.execute(sql)
-        # Limit results
-        rows = []
-        for i, row in enumerate(cur):
-            if i >= 500:
-                break
-            rows.append(list(row))
-        columns = [description[0] for description in cur.description] if cur.description else []
-        return {
-            'columns': columns,
-            'rows': rows,
-            'row_count': len(rows),
-            'elapsed_ms': 0  # Would need time measurement
-        }
+        ro.set_authorizer(_authorizer)
+        t0 = time.perf_counter()
+        ro.set_progress_handler(lambda: 1 if time.perf_counter() - t0 > timeout_s else 0, 10000)
+        try:
+            cur = ro.execute(text)
+            rows = []
+            truncated = False
+            for row in cur:
+                if len(rows) >= max_rows:
+                    truncated = True
+                    break
+                rows.append(list(row))
+            columns = [d[0] for d in cur.description] if cur.description else []
+        except sqlite3.DatabaseError as e:
+            raise ValidationError(f'Query rejected: {e}', code='SQL_REJECTED')
+        return {'columns': columns, 'rows': rows, 'row_count': len(rows), 'truncated': truncated,
+                'elapsed_ms': round((time.perf_counter() - t0) * 1000, 2)}
     finally:
-        conn.execute('PRAGMA query_only = OFF')
+        ro.close()

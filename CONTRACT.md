@@ -245,4 +245,5 @@ Demo context (ids created during the run) is stored server-side in a dict reset 
 
 | Date | By | Change |
 |---|---|---|
+| 2026-10-27 | both | **Security & Frontend Repair**: XSS escaping (escapeHtml in all JS), double-submit prevention (preventDoubleSubmit utility), modal/listener fixes, accessibility labels (aria-label on icon-only buttons), Schema page live ER diagram (removed missing er_diagram.png, uses /api/schema/er), Inspector trigger inference note (triggers_fired inferred from row changes), browser smoke tests (tests/smoke_test.py + tests/smoke_test.sh), updated README with security notes & test checklist |
 | 2026-10-26 | P1 | Initial contract created from ARCHITECTURE.md sections 8-11 |

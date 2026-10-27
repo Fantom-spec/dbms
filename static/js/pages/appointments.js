@@ -3,8 +3,8 @@
  * Book appointments, view visits, cancel, start treatment
  */
 
-import { get, post, handle } from '../api.js';
-import { renderTable } from '../tables.js';
+import { get, post, handle, preventDoubleSubmit } from '../api.js';
+import { renderTable, escapeHtml } from '../tables.js';
 import { openInspector, showLoading, showEmptyState, getVisitStatusBadgeClass, getVisitStatusLabel } from '../app.js';
 
 let visitsData = [];
@@ -113,7 +113,7 @@ function renderVisitsTable(data) {
                 if (['Scheduled', 'Waiting'].includes(row.visit_status)) {
                     actions.push(`<button class="btn btn-sm btn-outline-primary start-treatment" data-id="${row.visit_id}" title="Start Treatment"><i class="bi bi-play-circle"></i> Start</button>`);
                 }
-                actions.push(`<button class="btn btn-sm btn-outline-info view-summary" data-id="${row.visit_id}" title="View Summary"><i class="bi bi-eye"></i></button>`);
+                actions.push(`<button class="btn btn-sm btn-outline-info view-summary" data-id="${row.visit_id}" title="View Summary" aria-label="View Visit Summary"><i class="bi bi-eye"></i></button>`);
                 return `<div class="btn-group btn-group-sm" role="group">${actions.join('')}</div>`;
             }
         }
@@ -160,7 +160,7 @@ function setupFilters() {
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('bookAppointmentForm');
     if (form) {
-        form.addEventListener('submit', bookAppointment);
+        form.addEventListener('submit', preventDoubleSubmit(form, bookAppointment));
     }
 
     // Doctor info display
@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (retryBtn) {
         retryBtn.addEventListener('click', () => {
             if (lastBookingData) {
-                bookAppointment({ preventDefault: () => {}, target: form }, lastBookingData);
+                bookAppointment(lastBookingData);
             }
         });
     }
@@ -190,9 +190,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAppointments();
 });
 
-async function bookAppointment(e, overrideData = null) {
-    e.preventDefault();
-    const form = e.target;
+async function bookAppointment(overrideData = null) {
+    const form = document.getElementById('bookAppointmentForm');
     const formData = new FormData(form);
     const data = overrideData || Object.fromEntries(formData);
 
@@ -276,10 +275,10 @@ async function viewVisitSummary(id) {
                     <div class="col-md-6"><strong>Type:</strong> ${v.visit_type}</div>
                     <div class="col-md-6"><strong>Status:</strong> <span class="badge ${getVisitStatusBadgeClass(v.visit_status)}">${getVisitStatusLabel(v.visit_status)}</span></div>
                     <div class="col-md-6"><strong>Date/Time:</strong> ${v.visit_datetime}</div>
-                    <div class="col-md-6"><strong>Patient:</strong> ${p.patient_name} (ID: ${p.patient_id})</div>
-                    <div class="col-md-6"><strong>Doctor:</strong> ${d.doctor_name} (${d.department})</div>
-                    <div class="col-md-6"><strong>Complaint:</strong> ${v.complaint}</div>
-                    ${b ? `<div class="col-md-6"><strong>Bed:</strong> ${b.bed_id} (${b.ward_type}, ₹${b.daily_charge}/day)</div>` : ''}
+                    <div class="col-md-6"><strong>Patient:</strong> ${escapeHtml(p.patient_name)} (ID: ${p.patient_id})</div>
+                    <div class="col-md-6"><strong>Doctor:</strong> ${escapeHtml(d.doctor_name)} (${escapeHtml(d.department)})</div>
+                    <div class="col-md-6"><strong>Complaint:</strong> ${escapeHtml(v.complaint)}</div>
+                    ${b ? `<div class="col-md-6"><strong>Bed:</strong> ${b.bed_id} (${escapeHtml(b.ward_type)}, ₹${b.daily_charge}/day)</div>` : ''}
                     ${data.medicine_cost !== undefined ? `<div class="col-md-6"><strong>Medicine Cost:</strong> ₹${data.medicine_cost}</div>` : ''}
                     ${data.days_stayed !== undefined ? `<div class="col-md-6"><strong>Days Stayed:</strong> ${data.days_stayed}</div>` : ''}
                     ${data.bill ? `<div class="col-md-6"><strong>Bill:</strong> ₹${data.bill.total_amount} (${data.bill.payment_status})</div>` : ''}
@@ -293,8 +292,8 @@ async function viewVisitSummary(id) {
                             <tbody>
                                 ${prescriptions.map(pr => `
                                     <tr>
-                                        <td>${pr.medicine_name}</td>
-                                        <td>${pr.dosage}</td>
+                                        <td>${escapeHtml(pr.medicine_name)}</td>
+                                        <td>${escapeHtml(pr.dosage)}</td>
                                         <td>${pr.duration_days} days</td>
                                         <td>${pr.quantity}</td>
                                         <td>₹${pr.price_per_unit}</td>

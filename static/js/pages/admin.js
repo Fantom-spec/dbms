@@ -3,8 +3,8 @@
  * Doctors, Medicines, Beds management
  */
 
-import { get, post, put, handle } from '../api.js';
-import { renderTable } from '../tables.js';
+import { get, post, put, handle, preventDoubleSubmit } from '../api.js';
+import { renderTable, escapeHtml } from '../tables.js';
 import { openInspector, showEmptyState } from '../app.js';
 
 let doctorsData = [];
@@ -67,7 +67,7 @@ function renderDoctorsTable(data) {
             currency: (v) => `₹${v}`,
             actions: (v, row) => `
                 <div class="btn-group btn-group-sm" role="group">
-                    <button class="btn btn-outline-secondary edit-doctor" data-id="${row.doctor_id}" title="Edit">
+                    <button class="btn btn-outline-secondary edit-doctor" data-id="${row.doctor_id}" title="Edit" aria-label="Edit Doctor">
                         <i class="bi bi-pencil"></i>
                     </button>
                 </div>
@@ -163,7 +163,7 @@ function renderBedsAdminTable(data) {
                 const map = { Free: 'badge-bed-free', Occupied: 'badge-bed-occupied', Cleaning: 'badge-bed-cleaning' };
                 return `<span class="badge ${map[v] || 'bg-secondary'}">${v}</span>`;
             },
-            patient: (v, row) => row.patient_name ? `${row.patient_name} (Visit ${row.visit_id})` : '—',
+            patient: (v, row) => row.patient_name ? `${escapeHtml(row.patient_name)} (Visit ${row.visit_id})` : '—',
             actions: (v, row) => {
                 if (row.bed_status === 'Cleaning') {
                     return `<button class="btn btn-sm btn-success mark-free-admin" data-id="${row.bed_id}">Mark Free</button>`;
@@ -184,28 +184,27 @@ function renderBedsAdminTable(data) {
 function setupForms() {
     // Add Doctor
     const addDoctorForm = document.getElementById('addDoctorForm');
-    if (addDoctorForm) addDoctorForm.addEventListener('submit', addDoctor);
+    if (addDoctorForm) addDoctorForm.addEventListener('submit', preventDoubleSubmit(addDoctorForm, addDoctor));
 
     // Edit Doctor
     const editDoctorForm = document.getElementById('editDoctorForm');
-    if (editDoctorForm) editDoctorForm.addEventListener('submit', submitEditDoctor);
+    if (editDoctorForm) editDoctorForm.addEventListener('submit', preventDoubleSubmit(editDoctorForm, submitEditDoctor));
 
     // Add Medicine
     const addMedicineForm = document.getElementById('addMedicineAdminForm');
-    if (addMedicineForm) addMedicineForm.addEventListener('submit', addMedicine);
+    if (addMedicineForm) addMedicineForm.addEventListener('submit', preventDoubleSubmit(addMedicineForm, addMedicine));
 
     // Add Bed
     const addBedForm = document.getElementById('addBedAdminForm');
-    if (addBedForm) addBedForm.addEventListener('submit', addBed);
+    if (addBedForm) addBedForm.addEventListener('submit', preventDoubleSubmit(addBedForm, addBed));
 
     // Set Bed Status
     const setBedStatusForm = document.getElementById('setBedStatusForm');
-    if (setBedStatusForm) setBedStatusForm.addEventListener('submit', submitSetBedStatus);
+    if (setBedStatusForm) setBedStatusForm.addEventListener('submit', preventDoubleSubmit(setBedStatusForm, submitSetBedStatus));
 }
 
-async function addDoctor(e) {
-    e.preventDefault();
-    const form = e.target;
+async function addDoctor() {
+    const form = document.getElementById('addDoctorForm');
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
     data.consultation_fee = parseFloat(data.consultation_fee);
@@ -237,9 +236,8 @@ function editDoctor(id) {
     new bootstrap.Modal(document.getElementById('editDoctorModal')).show();
 }
 
-async function submitEditDoctor(e) {
-    e.preventDefault();
-    const form = e.target;
+async function submitEditDoctor() {
+    const form = document.getElementById('editDoctorForm');
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
     const id = data.doctor_id;
@@ -258,9 +256,8 @@ async function submitEditDoctor(e) {
     });
 }
 
-async function addMedicine(e) {
-    e.preventDefault();
-    const form = e.target;
+async function addMedicine() {
+    const form = document.getElementById('addMedicineAdminForm');
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
     data.stock_quantity = parseInt(data.stock_quantity, 10);
@@ -279,9 +276,8 @@ async function addMedicine(e) {
     });
 }
 
-async function addBed(e) {
-    e.preventDefault();
-    const form = e.target;
+async function addBed() {
+    const form = document.getElementById('addBedAdminForm');
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
     data.daily_charge = parseFloat(data.daily_charge);
@@ -307,9 +303,8 @@ function openSetBedStatusModal(bedId, currentStatus) {
     modal.show();
 }
 
-async function submitSetBedStatus(e) {
-    e.preventDefault();
-    const form = e.target;
+async function submitSetBedStatus() {
+    const form = document.getElementById('setBedStatusForm');
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
     const bedId = data.bed_id;

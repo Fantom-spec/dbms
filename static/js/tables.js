@@ -316,4 +316,9 @@ export function updateTableRow(container, rowIndex, newRowData, columns) {
     });
 }
 
+export function showEmptyState(container, message = 'No data available', icon = 'bi-inbox') {
+    if (!container) return;
+    container.innerHTML = `<div class="empty-state"><i class="bi ${escapeHtml(icon)}"></i><p>${escapeHtml(message)}</p></div>`;
+}
+
 export { escapeHtml };

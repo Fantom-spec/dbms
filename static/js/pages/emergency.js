@@ -3,7 +3,7 @@
  * Register emergency, view queue, cursor output
  */
 
-import { get, post, handle } from '../api.js';
+import { get, post, handle, preventDoubleSubmit } from '../api.js';
 import { renderTable } from '../tables.js';
 import { openInspector, getTriageBadgeClass, getTriageLabel } from '../app.js';
 
@@ -156,7 +156,7 @@ function setupForms() {
     // Register Emergency Form
     const form = document.getElementById('registerEmergencyForm');
     if (form) {
-        form.addEventListener('submit', registerEmergency);
+        form.addEventListener('submit', preventDoubleSubmit(form, registerEmergency));
     }
 
     // Toggle cursor
@@ -173,9 +173,8 @@ function setupForms() {
     }
 }
 
-async function registerEmergency(e) {
-    e.preventDefault();
-    const form = e.target;
+async function registerEmergency() {
+    const form = document.getElementById('registerEmergencyForm');
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
     data.triage_level = parseInt(data.triage_level, 10);

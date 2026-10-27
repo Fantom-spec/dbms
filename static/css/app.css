@@ -724,3 +724,12 @@ canvas {
         --warning-color: #856404;
     }
 }
+/* Icon-font fallback: the Bootstrap Icons font files (static/vendor/bootstrap-icons/fonts/*.woff2)
+   are not bundled in this repository snapshot. If they cannot be loaded, app.js sets
+   .no-icon-font on <html> and icons degrade to a neutral bullet instead of empty boxes. */
+.no-icon-font .bi::before,
+.no-icon-font [class^="bi-"]::before,
+.no-icon-font [class*=" bi-"]::before {
+    content: "\2022" !important;
+    font-family: inherit !important;
+}

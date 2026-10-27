@@ -217,6 +217,7 @@ function renderTriggersTab(inspector, container) {
                                 <span class="badge bg-info text-dark small">${escapeHtml(t.event)}</span>
                             </div>
                             <div class="small text-muted">${escapeHtml(t.effect)}</div>
+                            ${t.inferred ? '<div class="small text-info"><i class="bi bi-info-circle"></i> Inferred from row changes</div>' : ''}
                         </div>
                     </div>
                 </div>
@@ -224,6 +225,14 @@ function renderTriggersTab(inspector, container) {
         });
         html += '</div>';
         triggersEl.innerHTML = html;
+    }
+
+    // Add note about trigger inference
+    if (inspector.notes) {
+        const notesEl = document.createElement('div');
+        notesEl.className = 'mt-3 p-2 bg-light rounded';
+        notesEl.innerHTML = `<small class="text-muted"><i class="bi bi-info-circle"></i> ${escapeHtml(inspector.notes)}</small>`;
+        triggersEl.appendChild(notesEl);
     }
 
     // Functions
@@ -430,4 +439,19 @@ export function renderErrorBanner(inspector, container) {
 // Make globally available for app.js fallback
 window.inspector = { render };
 
-export default { render, renderErrorBanner };
+/** Open the shared slide-in inspector panel (present on every page via base.html). */
+export function openInspector(inspectorData) {
+    const panel = document.getElementById('inspectorPanel');
+    const body = document.getElementById('inspectorBody');
+    if (!panel || !body || !inspectorData) return;
+    body.innerHTML = '';
+    render(inspectorData, body);
+    panel.classList.add('open');
+}
+
+export function closeInspector() {
+    const panel = document.getElementById('inspectorPanel');
+    if (panel) panel.classList.remove('open');
+}
+
+export default { render, renderErrorBanner, openInspector, closeInspector };

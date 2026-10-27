@@ -14,11 +14,7 @@ import config
 
 @pytest.fixture
 def client():
-    # Force reload and ensure stub mode
-    os.environ['FLASK_API_MODE'] = 'stub'
-    importlib.reload(config)
-    importlib.reload(app)
-    app_instance = app.create_app()
+    app_instance = app.create_app({'FLASK_API_MODE': 'stub', 'TESTING': True})
     with app_instance.test_client() as client:
         yield client
 

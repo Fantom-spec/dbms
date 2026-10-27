@@ -1,150 +1,201 @@
 """
-Transaction Inspector for Smart Hospital Management System.
-Builds inspector objects with SQL trace, before/after snapshots, trigger/function info.
+Transaction Inspector.
+
+For every state-changing API call the inspector reports what the database actually
+did, so a viva audience can *see* the procedure / trigger / constraint at work.
+
+How it works (and its honest limits)
+------------------------------------
+* ``Capture`` snapshots the tables before the operation, records the SQL text the
+  connection executes (``sqlite3`` trace callback) and snapshots the tables again
+  afterwards.  ``before`` / ``after`` therefore hold only the rows that really
+  changed (matched by primary key) - they come from the database, not from the
+  service layer's own bookkeeping.
+* SQLite does NOT tell us which trigger ran (on this build the trace callback only
+  repeats the parent statement).  ``triggers_fired`` is therefore *inferred* from
+  the observed row changes using the known trigger definitions (db/triggers.sql):
+  e.g. a new ``audit_log`` row with table_name 'VISIT' and action 'INSERT' can only
+  have been written by ``trg_audit_visit__insert``.  Each entry carries
+  ``"inferred": true`` so the UI can say so.
+* The state lives on the connection (``conn.insp``), never in module globals, so
+  concurrent requests cannot mix their traces.
 """
 import sqlite3
-from typing import Dict, List, Any, Optional, Set
-from datetime import datetime
-from db.connection import get_trace_data, snapshot_table
+import time
+from typing import Any, Dict, List, Optional
+
+TRACKED_TABLES = ['patient', 'doctor', 'bed', 'medicine', 'visit', 'prescription', 'bill', 'audit_log']
+PK = {'patient': 'patient_id', 'doctor': 'doctor_id', 'bed': 'bed_id', 'medicine': 'medicine_id',
+      'visit': 'visit_id', 'prescription': 'prescription_id', 'bill': 'bill_id', 'audit_log': 'log_id'}
+
+MAX_SQL_LINES = 60
+MAX_SQL_LEN = 600
 
 
-# Track which tables were modified during a transaction
-_modified_tables: Dict[str, Set[int]] = {}  # table -> set of PKs
+def snapshot_all(conn: sqlite3.Connection) -> Dict[str, Dict[Any, Dict]]:
+    """{table: {pk: row_dict}} for every tracked table."""
+    snap: Dict[str, Dict[Any, Dict]] = {}
+    for table in TRACKED_TABLES:
+        pk = PK[table]
+        snap[table] = {r[pk]: dict(r) for r in conn.execute(f'SELECT * FROM "{table}"')}
+    return snap
 
 
-def track_table_access(table: str, pk_values: List[Any] = None):
-    """Called by services to track which tables/PKs were accessed."""
-    if table not in _modified_tables:
-        _modified_tables[table] = set()
-    if pk_values:
-        _modified_tables[table].update(pk_values)
+def diff_snapshots(before: Dict, after: Dict) -> Dict[str, Dict[str, List[Dict]]]:
+    """Per table: rows before/after that were inserted, updated or deleted."""
+    out: Dict[str, Dict[str, List[Dict]]] = {}
+    for table in TRACKED_TABLES:
+        b, a = before.get(table, {}), after.get(table, {})
+        rows_b: List[Dict] = []
+        rows_a: List[Dict] = []
+        for pk in sorted(set(b) | set(a), key=lambda x: (str(type(x)), x)):
+            if b.get(pk) != a.get(pk):
+                if pk in b:
+                    rows_b.append(b[pk])
+                if pk in a:
+                    rows_a.append(a[pk])
+        if rows_b or rows_a:
+            out[table] = {'before': rows_b, 'after': rows_a}
+    return out
 
 
-def clear_tracking():
-    """Clear the tracking for a new transaction."""
-    _modified_tables.clear()
+def _changes(before: Dict, after: Dict) -> Dict[str, Dict[str, List]]:
+    ch: Dict[str, Dict[str, List]] = {}
+    for table in TRACKED_TABLES:
+        b, a = before.get(table, {}), after.get(table, {})
+        ch[table] = {
+            'inserted': [a[k] for k in a if k not in b],
+            'deleted': [b[k] for k in b if k not in a],
+            'updated': [(b[k], a[k]) for k in a if k in b and a[k] != b[k]],
+        }
+    return ch
 
 
-def build_inspector(conn: sqlite3.Connection, operation: str, 
-                    component: Dict = None, tables: List[str] = None,
-                    functions_used: List[Dict] = None,
-                    error: Exception = None,
-                    operation_type: str = "procedure") -> Dict:
-    """
-    Build an inspector object for the API response.
-    
-    Args:
-        conn: Database connection
-        operation: Human-readable operation name
-        component: Dict with name, type, oracle_equivalent
-        tables: List of table names touched (if None, uses tracked tables)
-        functions_used: List of function info dicts
-        error: Exception if operation failed
-        operation_type: 'procedure', 'cursor', 'query', 'trigger', etc.
-    
-    Returns:
-        Inspector dict for API envelope
-    """
-    # Get trace data (SQL statements, triggers fired)
-    trace = get_trace_data()
-    
-    # Determine tables touched
-    if tables is None:
-        tables = list(_modified_tables.keys())
-    
-    # Build before/after snapshots
-    before = {}
-    after = {}
-    
-    if tables:
-        for table in tables:
-            pk_col = _get_pk_column(conn, table)
-            pk_values = _modified_tables.get(table, set())
-            
-            if pk_values:
-                # We don't have "before" snapshots easily, but we can get current state
-                after[table] = snapshot_table(conn, table, pk_col, list(pk_values))
-                # For before, we'd need to capture before the operation
-                # This is a simplified version
-                before[table] = []
-    
-    # Build inspector
-    inspector = {
-        "operation": operation,
-        "component": component or {"name": operation, "type": operation_type, "oracle_equivalent": "N/A"},
-        "tables": tables,
-        "functions_used": functions_used or [],
-        "triggers_fired": trace.get('triggers_fired', []),
-        "sql": trace.get('sql', []),
-        "before": before,
-        "after": after,
-        "viva": _build_viva(operation, tables, component, functions_used, trace, error),
-        "elapsed_ms": 0  # Would need timing
-    }
-    
-    # Clear tracking for next transaction
-    clear_tracking()
-    
-    return inspector
+def infer_triggers(before: Dict, after: Dict) -> List[Dict]:
+    """Infer which physical triggers ran from the observed changes (see module doc)."""
+    ch = _changes(before, after)
+    fired: List[Dict] = []
+
+    def add(name, event, effect):
+        fired.append({'name': name, 'event': event, 'effect': effect, 'inferred': True})
+
+    # trg_reduce_stock
+    for row in ch['prescription']['inserted']:
+        stock_after = after['medicine'].get(row['medicine_id'], {}).get('stock_quantity')
+        add('trg_reduce_stock__insert', 'BEFORE INSERT ON prescription',
+            f"Checked stock for medicine {row['medicine_id']} and reduced it by {row['quantity']}"
+            + (f" (stock now {stock_after})" if stock_after is not None else ''))
+    for row in ch['prescription']['deleted']:
+        stock_after = after['medicine'].get(row['medicine_id'], {}).get('stock_quantity')
+        add('trg_reduce_stock__delete', 'AFTER DELETE ON prescription',
+            f"Restored {row['quantity']} unit(s) to medicine {row['medicine_id']}"
+            + (f" (stock now {stock_after})" if stock_after is not None else ''))
+
+    # audit triggers: every new audit_log row names its trigger
+    for row in ch['audit_log']['inserted']:
+        table = str(row['table_name']).lower()
+        action = str(row['action_type']).lower()
+        add(f'trg_audit_{table}__{action}', f"AFTER {row['action_type']} ON {table}",
+            f"Wrote audit_log #{row['log_id']} ({row['description']}) as {row['changed_by']}")
+
+    # trg_doctor_status
+    for old, new in ch['doctor']['updated']:
+        if old['availability_status'] != new['availability_status']:
+            ins = any(v['doctor_id'] == new['doctor_id'] for v in ch['visit']['inserted'])
+            add('trg_doctor_status__insert' if ins else 'trg_doctor_status__update',
+                'AFTER INSERT ON visit' if ins else 'AFTER UPDATE OF visit_status ON visit',
+                f"Doctor {new['doctor_id']} {old['availability_status']} -> {new['availability_status']}")
+    return fired
 
 
-def _get_pk_column(conn: sqlite3.Connection, table: str) -> str:
-    """Get primary key column name for a table."""
-    cols = conn.execute(f'PRAGMA table_info({table})').fetchall()
-    for c in cols:
-        if c['pk'] == 1:
-            return c['name']
-    return 'id'
+class Capture:
+    """Context object: take a snapshot, trace SQL, then diff.  One per operation."""
+
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+        self.sql: List[str] = []
+        self.before: Optional[Dict] = None
+        self.after: Optional[Dict] = None
+        self._t0 = 0.0
+        self.elapsed_ms = 0.0
+
+    def _trace(self, stmt: str) -> None:
+        text = ' '.join(str(stmt).split())
+        if text.startswith('-- '):          # UDF-internal statements are reported as comments
+            text = text[3:]
+        if len(text) > MAX_SQL_LEN:
+            text = text[:MAX_SQL_LEN] + ' ...'
+        if text and (not self.sql or self.sql[-1] != text):
+            self.sql.append(text)
+
+    def start(self) -> 'Capture':
+        self.before = snapshot_all(self.conn)
+        self._t0 = time.perf_counter()
+        self.conn.set_trace_callback(self._trace)
+        self.conn.insp = self
+        return self
+
+    def mark_after(self) -> None:
+        """Snapshot the 'after' state now (used by sandboxes just before their ROLLBACK)."""
+        self.conn.set_trace_callback(None)
+        self.after = snapshot_all(self.conn)
+        self.conn.set_trace_callback(self._trace)
+
+    def finish(self) -> 'Capture':
+        self.conn.set_trace_callback(None)
+        self.elapsed_ms = round((time.perf_counter() - self._t0) * 1000, 2)
+        # a failed operation must not leave the connection in a transaction
+        if self.conn.in_transaction and self.after is None:
+            try:
+                self.conn.execute('ROLLBACK')
+            except sqlite3.Error:
+                pass
+        if self.after is None:
+            self.after = snapshot_all(self.conn)
+        self.conn.insp = None
+        if len(self.sql) > MAX_SQL_LINES:
+            extra = len(self.sql) - MAX_SQL_LINES
+            self.sql = self.sql[:MAX_SQL_LINES] + [f'... {extra} more statement(s)']
+        return self
 
 
-def _build_viva(operation: str, tables: List[str], component: Dict, 
-                functions_used: List[Dict], trace: Dict, error: Exception = None) -> Dict:
-    """Build the viva explanation fields."""
-    
-    # Determine what the operation did
-    if error:
-        result = f"Failed: {error}"
+def build_inspector(cap: Optional[Capture], operation: str, *, component: Optional[Dict] = None,
+                    functions_used: Optional[List[Dict]] = None, error: Optional[Dict] = None,
+                    effect: Optional[str] = None) -> Dict:
+    """Assemble the inspector object defined in ARCHITECTURE.md section 7."""
+    component = component or {'name': operation, 'type': 'procedure', 'oracle_equivalent': 'N/A'}
+    if cap is None or cap.before is None:
+        diff, fired = {}, []
     else:
-        result = f"{operation} completed successfully"
-    
-    # Build effect description
-    effects = []
-    if 'visit' in tables and 'patient' in tables:
-        effects.append("visit and patient tables modified")
-    elif 'visit' in tables:
-        effects.append("visit table modified")
-    elif 'prescription' in tables and 'medicine' in tables:
-        effects.append("prescription inserted; medicine stock reduced via trigger")
-    elif 'bill' in tables:
-        effects.append("bill generated with computed charges")
-    elif 'audit_log' in tables:
-        effects.append("audit row written")
-    
-    if not effects:
-        effects.append(f"{', '.join(tables) if tables else 'no tables'} modified")
-    
+        diff = diff_snapshots(cap.before, cap.after or cap.before)
+        fired = infer_triggers(cap.before, cap.after or cap.before)
+    tables = [t for t in TRACKED_TABLES if t in diff]
+    before = {t: diff[t]['before'] for t in tables}
+    after = {t: diff[t]['after'] for t in tables}
+
+    if error:
+        result = f"Rejected - {error.get('code')}: {error.get('detail') or ''}".strip()
+        eff = effect or 'Transaction rolled back; no table was changed'
+    else:
+        result = f'{operation} completed'
+        eff = effect or ('; '.join(f"{f['name']}: {f['effect']}" for f in fired)
+                         or ('changed ' + ', '.join(tables) if tables else 'read only - no table changed'))
     return {
-        "operation": operation,
-        "tables": ", ".join(tables) if tables else "none",
-        "component": component.get('name', operation) if component else operation,
-        "effect": "; ".join(effects) if effects else "no effect",
-        "result": result
+        'operation': operation,
+        'component': component,
+        'tables': tables,
+        'functions_used': functions_used or [],
+        'triggers_fired': fired,
+        'sql': cap.sql if cap else [],
+        'before': before,
+        'after': after,
+        'viva': {
+            'operation': operation,
+            'tables': ', '.join(tables) if tables else 'none',
+            'component': component.get('name', operation),
+            'effect': eff,
+            'result': result,
+        },
+        'elapsed_ms': cap.elapsed_ms if cap else 0,
+        'notes': 'triggers_fired is inferred from the observed row changes; SQLite does not report trigger names.',
     }
-
-
-def register_table_modification(table: str, pk_values: List[Any]):
-    """Register that a table was modified with given PK values (call from services)."""
-    track_table_access(table, pk_values)
-
-
-# For use by services to track modifications
-def register_insert(table: str, pk_value: Any):
-    track_table_access(table, [pk_value])
-
-
-def register_update(table: str, pk_value: Any):
-    track_table_access(table, [pk_value])
-
-
-def register_delete(table: str, pk_value: Any):
-    track_table_access(table, [pk_value])

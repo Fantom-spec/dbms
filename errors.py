@@ -11,12 +11,31 @@ from typing import Optional, Tuple
 # These mirror Oracle RAISE_APPLICATION_ERROR numbers from Review II
 
 class BusinessRuleError(Exception):
-    """Raised when a business rule is violated."""
-    
-    def __init__(self, code: str, message: str):
+    """Raised when a business rule is violated (or a request is invalid / not found).
+
+    ``kind`` follows CONTRACT.md: business_rule | not_found | validation | constraint.
+    """
+    kind = 'business_rule'
+
+    def __init__(self, code: str, message: str, kind: Optional[str] = None):
         self.code = code
         self.message = message
+        if kind:
+            self.kind = kind
         super().__init__(f"{code}: {message}")
+
+
+class ValidationError(BusinessRuleError):
+    """The request itself is malformed or has an invalid value (nothing was attempted)."""
+    kind = 'validation'
+
+    def __init__(self, message: str, code: str = 'VALIDATION_ERROR'):
+        super().__init__(code, message)
+
+
+class NotFoundError(BusinessRuleError):
+    """A referenced row does not exist."""
+    kind = 'not_found'
 
 
 # Error code constants
@@ -36,6 +55,13 @@ AUDIT_PROTECTED = "AUDIT_PROTECTED"
 INSUFFICIENT_STOCK = "INSUFFICIENT_STOCK"
 BILL_EXISTS = "BILL_EXISTS"
 NOT_DISCHARGED = "NOT_DISCHARGED"
+MEDICINE_NOT_FOUND = "MEDICINE_NOT_FOUND"
+BED_NOT_FOUND = "BED_NOT_FOUND"
+BILL_NOT_FOUND = "BILL_NOT_FOUND"
+PRESCRIPTION_NOT_FOUND = "PRESCRIPTION_NOT_FOUND"
+BED_IN_USE = "BED_IN_USE"
+VALIDATION_ERROR = "VALIDATION_ERROR"
+FK_VIOLATION = "FK_VIOLATION"
 
 # Constraint-related error codes (mapped from SQLite constraint names)
 UQ_PATIENT_PHONE = "UQ_PATIENT_PHONE"
@@ -158,48 +184,33 @@ def map_sqlite_error(exc: sqlite3.Error) -> Tuple[str, str]:
         if code:
             return code, _friendly_message(code, msg)
     
-    # Check for UNIQUE constraint: "UNIQUE constraint failed: <table>.<column>" or index name
-    unique_match = re.search(r'UNIQUE constraint failed:\s*([\w.]+)', msg)
+    # UNIQUE: "UNIQUE constraint failed: patient.phone" or, for a multi-column index,
+    # "UNIQUE constraint failed: visit.doctor_id, visit.visit_datetime"
+    unique_match = re.search(r'UNIQUE constraint failed:\s*(.+)$', msg)
     if unique_match:
-        constraint_ref = unique_match.group(1)
-        # Try to match index name, table.column, or just column
-        for key, code in CONSTRAINT_TO_CODE.items():
-            if key in constraint_ref or key.replace('uq_', '') in constraint_ref:
-                return code, _friendly_message(code, msg)
-        
-        # Match by column name in table.column format
-        if '.phone' in constraint_ref:
+        cols = {c.strip() for c in unique_match.group(1).split(',')}
+        if 'patient.phone' in cols:
             return UQ_PATIENT_PHONE, _friendly_message(UQ_PATIENT_PHONE, msg)
-        if '.doctor_id' in constraint_ref and '.visit_datetime' in constraint_ref:
+        if 'doctor.phone' in cols:
+            return UQ_DOCTOR_PHONE, _friendly_message(UQ_DOCTOR_PHONE, msg)
+        if {'visit.doctor_id', 'visit.visit_datetime'} <= cols:
             return UQ_DOCTOR_SLOT, _friendly_message(UQ_DOCTOR_SLOT, msg)
-        if '.bed_id' in constraint_ref:
+        if 'visit.bed_id' in cols:
             return UQ_ACTIVE_BED, _friendly_message(UQ_ACTIVE_BED, msg)
-        if '.visit_id' in constraint_ref:
+        if 'bill.visit_id' in cols:
             return UQ_BILL_VISIT, _friendly_message(UQ_BILL_VISIT, msg)
-    
-    # Check for FOREIGN KEY constraint
+        for key, code in CONSTRAINT_TO_CODE.items():     # index name, if SQLite ever reports it
+            if key.startswith('uq_') and key in msg:
+                return code, _friendly_message(code, msg)
+
+    # FOREIGN KEY: SQLite does not name the constraint, so the message stays generic
     if 'FOREIGN KEY constraint failed' in msg:
-        # Try to identify which FK by looking at table/column in message
         for key, code in CONSTRAINT_TO_CODE.items():
             if key.startswith('fk_') and key in msg.lower():
                 return code, _friendly_message(code, msg)
-        
-        # Match by context in error message
-        if 'visit' in msg.lower() and 'patient' in msg.lower():
-            return FK_VISIT_PATIENT, _friendly_message(FK_VISIT_PATIENT, msg)
-        if 'visit' in msg.lower() and 'doctor' in msg.lower():
-            return FK_VISIT_DOCTOR, _friendly_message(FK_VISIT_DOCTOR, msg)
-        if 'visit' in msg.lower() and 'bed' in msg.lower():
-            return FK_VISIT_BED, _friendly_message(FK_VISIT_BED, msg)
-        if 'prescription' in msg.lower() and 'visit' in msg.lower():
-            return FK_PRESC_VISIT, _friendly_message(FK_PRESC_VISIT, msg)
-        if 'prescription' in msg.lower() and 'medicine' in msg.lower():
-            return FK_PRESC_MED, _friendly_message(FK_PRESC_MED, msg)
-        if 'bill' in msg.lower() and 'visit' in msg.lower():
-            return FK_BILL_VISIT, _friendly_message(FK_BILL_VISIT, msg)
-        
-        return 'FK_VIOLATION', 'Foreign key constraint violated'
-    
+        return FK_VIOLATION, ('Blocked by a foreign key: a referenced row does not exist, '
+                              'or other rows still reference this one')
+
     # Default
     return 'DB_ERROR', msg
 
@@ -252,27 +263,35 @@ def _friendly_message(code: str, raw_msg: str) -> str:
     return messages.get(code, raw_msg)
 
 
+def error_kind(code: str) -> str:
+    """Contract ``error.kind`` for an error code."""
+    if code.endswith('_NOT_FOUND'):
+        return 'not_found'
+    if code in (VALIDATION_ERROR, 'INVALID_ROLE', 'MISSING_FIELD', 'MISSING_SQL', 'BAD_REQUEST',
+                'BAD_JSON', 'CSRF_REJECTED', 'SQL_NOT_ALLOWED'):
+        return 'validation'
+    if code in CONSTRAINT_TO_CODE.values() or code in (FK_VIOLATION, 'DB_ERROR'):
+        return 'constraint'
+    return 'business_rule'
+
+
+def error_payload(code: str, detail: str = '', kind: Optional[str] = None) -> dict:
+    """The ``error`` object of an envelope."""
+    kind = kind or error_kind(code)
+    return {
+        'kind': kind,
+        'code': code,
+        'constraint': code if code in CONSTRAINT_TO_CODE.values() else None,
+        'detail': detail,
+    }
+
+
 def make_error_envelope(code: str, message: str, detail: str = '') -> dict:
     """Create an error envelope for API responses."""
     return {
         'ok': False,
         'message': message,
-        'error': {
-            'kind': 'business_rule' if code in [
-                VISIT_NOT_FOUND, PATIENT_NOT_FOUND, DOCTOR_NOT_FOUND,
-                SLOT_IN_PAST, SLOT_TAKEN, BAD_TRIAGE, NO_EMERGENCY_DOCTOR,
-                VISIT_CLOSED, ALREADY_HAS_BED, NO_FREE_BED, BED_TAKEN,
-                BAD_STATUS, AUDIT_PROTECTED, INSUFFICIENT_STOCK,
-                BILL_EXISTS, NOT_DISCHARGED
-            ] else 'constraint',
-            'code': code,
-            'constraint': code if code in CONSTRAINT_TO_CODE.values() else None,
-            'detail': detail or raw_msg
-        },
+        'error': error_payload(code, detail or message),
         'data': None,
-        'inspector': None
+        'inspector': None,
     }
-
-
-# For backward compatibility
-raw_msg = ''

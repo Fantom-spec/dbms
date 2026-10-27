@@ -7,7 +7,8 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 
 from errors import (
-    BusinessRuleError, map_sqlite_error,
+    BusinessRuleError, ValidationError, NotFoundError, map_sqlite_error,
+    MEDICINE_NOT_FOUND, BED_NOT_FOUND, BILL_NOT_FOUND, PRESCRIPTION_NOT_FOUND, BED_IN_USE,
     VISIT_NOT_FOUND, PATIENT_NOT_FOUND, DOCTOR_NOT_FOUND,
     SLOT_IN_PAST, SLOT_TAKEN, BAD_TRIAGE, NO_EMERGENCY_DOCTOR,
     VISIT_CLOSED, ALREADY_HAS_BED, NO_FREE_BED, BED_TAKEN,
@@ -16,11 +17,18 @@ from errors import (
     UQ_DOCTOR_SLOT
 )
 
-# Inspector tracking
-from inspector import register_insert, register_update, register_delete
+from validation import (
+    req_int, req_number, req_str, opt_str, req_choice, normalize_timestamp,
+)
+from db.connection import parse_timestamp
 
 
 # ===== Helper Functions =====
+
+def _read(conn: sqlite3.Connection, operations: callable) -> Any:
+    """Run a read-only operation (no write lock, no transaction of its own)."""
+    return operations(conn)
+
 
 def _execute_in_transaction(conn: sqlite3.Connection, operations: callable) -> Any:
     """
@@ -57,7 +65,7 @@ def _execute_in_transaction(conn: sqlite3.Connection, operations: callable) -> A
         if not in_transaction:
             conn.execute('ROLLBACK')
         code, msg = map_sqlite_error(e)
-        raise BusinessRuleError(code, msg)
+        raise BusinessRuleError(code, msg, kind='constraint')
     except sqlite3.Error as e:
         if not in_transaction:
             conn.execute('ROLLBACK')
@@ -80,7 +88,7 @@ def _require_patient(conn: sqlite3.Connection, patient_id: int) -> Dict:
         'SELECT * FROM patient WHERE patient_id = ?', (patient_id,)
     ).fetchone()
     if not row:
-        raise BusinessRuleError(PATIENT_NOT_FOUND, f'Patient {patient_id} not found')
+        raise NotFoundError(PATIENT_NOT_FOUND, f'Patient {patient_id} not found')
     return dict(row)
 
 
@@ -90,7 +98,7 @@ def _require_doctor(conn: sqlite3.Connection, doctor_id: int) -> Dict:
         'SELECT * FROM doctor WHERE doctor_id = ?', (doctor_id,)
     ).fetchone()
     if not row:
-        raise BusinessRuleError(DOCTOR_NOT_FOUND, f'Doctor {doctor_id} not found')
+        raise NotFoundError(DOCTOR_NOT_FOUND, f'Doctor {doctor_id} not found')
     return dict(row)
 
 
@@ -100,7 +108,7 @@ def _require_visit(conn: sqlite3.Connection, visit_id: int) -> Dict:
         'SELECT * FROM visit WHERE visit_id = ?', (visit_id,)
     ).fetchone()
     if not row:
-        raise BusinessRuleError(VISIT_NOT_FOUND, f'Visit {visit_id} not found')
+        raise NotFoundError(VISIT_NOT_FOUND, f'Visit {visit_id} not found')
     return dict(row)
 
 
@@ -110,7 +118,7 @@ def _require_medicine(conn: sqlite3.Connection, medicine_id: int) -> Dict:
         'SELECT * FROM medicine WHERE medicine_id = ?', (medicine_id,)
     ).fetchone()
     if not row:
-        raise BusinessRuleError(DOCTOR_NOT_FOUND, f'Medicine {medicine_id} not found')  # Reusing code
+        raise NotFoundError(MEDICINE_NOT_FOUND, f'Medicine {medicine_id} not found')
     return dict(row)
 
 
@@ -120,16 +128,16 @@ def _require_bed(conn: sqlite3.Connection, bed_id: int) -> Dict:
         'SELECT * FROM bed WHERE bed_id = ?', (bed_id,)
     ).fetchone()
     if not row:
-        raise BusinessRuleError(DOCTOR_NOT_FOUND, f'Bed {bed_id} not found')  # Reusing code
+        raise NotFoundError(BED_NOT_FOUND, f'Bed {bed_id} not found')
     return dict(row)
 
 
 def _parse_datetime(dt_str: str) -> datetime:
-    """Parse datetime string to datetime object."""
-    try:
-        return datetime.strptime(dt_str, '%Y-%m-%d %H:%M:%S')
-    except ValueError:
-        return datetime.strptime(dt_str, '%Y-%m-%d')
+    """Parse a timestamp string; raises ValidationError if it is not a valid date/time."""
+    parsed = parse_timestamp(dt_str)
+    if parsed is None:
+        raise ValidationError(f'Invalid date/time: {dt_str!r}')
+    return parsed
 
 
 def _now_str() -> str:
@@ -144,6 +152,11 @@ def _today_str() -> str:
 
 # ===== Patient Services =====
 
+def _text(value):
+    """Phone numbers may arrive as JSON numbers; store them as text."""
+    return str(value) if isinstance(value, int) and not isinstance(value, bool) else value
+
+
 def register_patient(conn: sqlite3.Connection, data: Dict) -> Dict:
     """
     Register a new patient.
@@ -157,26 +170,23 @@ def register_patient(conn: sqlite3.Connection, data: Dict) -> Dict:
         Dict with patient_id
     """
     def _ops(c):
-        required = ['patient_name', 'gender', 'date_of_birth', 'phone']
-        for field in required:
-            if not data.get(field):
-                raise BusinessRuleError('VALIDATION_ERROR', f'Missing required field: {field}')
-        
+        if not isinstance(data, dict):
+            raise ValidationError('Request body must be a JSON object')
+        name = req_str(data.get('patient_name'), 'patient_name', 100)
+        gender = req_str(data.get('gender'), 'gender', 20)
+        dob = req_str(data.get('date_of_birth'), 'date_of_birth', 10)
+        phone = req_str(_text(data.get('phone')), 'phone', 20)
         cur = c.execute('''
             INSERT INTO patient (patient_name, gender, date_of_birth, phone, 
                                address, blood_group, emergency_contact)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (
-            data['patient_name'],
-            data['gender'],
-            data['date_of_birth'],
-            data['phone'],
-            data.get('address'),
-            data.get('blood_group'),
-            data.get('emergency_contact')
+            name, gender, dob, phone,
+            opt_str(data.get('address'), 'address', 200),
+            opt_str(data.get('blood_group'), 'blood_group', 5),     # '' -> NULL (CHECK would reject '')
+            opt_str(_text(data.get('emergency_contact')), 'emergency_contact', 20),
         ))
         patient_id = cur.lastrowid
-        register_insert('patient', patient_id)
         return {'patient_id': patient_id}
     
     return _execute_in_transaction(conn, _ops)
@@ -196,22 +206,26 @@ def update_patient(conn: sqlite3.Connection, patient_id: int, data: Dict) -> Dic
     """
     def _ops(c):
         _require_patient(c, patient_id)
-        
-        allowed_fields = ['patient_name', 'gender', 'date_of_birth', 'phone',
-                         'address', 'blood_group', 'emergency_contact']
+        if not isinstance(data, dict):
+            raise ValidationError('Request body must be a JSON object')
+        required_fields = ['patient_name', 'gender', 'date_of_birth', 'phone']
+        optional_fields = ['address', 'blood_group', 'emergency_contact']
         updates = []
         values = []
-        for field in allowed_fields:
+        for field in required_fields:
             if field in data:
                 updates.append(f'{field} = ?')
-                values.append(data[field])
+                values.append(req_str(_text(data[field]), field, 100))
+        for field in optional_fields:
+            if field in data:
+                updates.append(f'{field} = ?')
+                values.append(opt_str(_text(data[field]), field, 200))   # '' -> NULL
         
         if not updates:
             raise BusinessRuleError('VALIDATION_ERROR', 'No valid fields to update')
         
         values.append(patient_id)
         c.execute(f'UPDATE patient SET {", ".join(updates)} WHERE patient_id = ?', values)
-        register_update('patient', patient_id)
         return {'patient_id': patient_id}
     
     return _execute_in_transaction(conn, _ops)
@@ -231,7 +245,6 @@ def delete_patient(conn: sqlite3.Connection, patient_id: int) -> Dict:
     def _ops(c):
         _require_patient(c, patient_id)
         c.execute('DELETE FROM patient WHERE patient_id = ?', (patient_id,))
-        register_delete('patient', patient_id)
         return {'patient_id': patient_id}
     
     return _execute_in_transaction(conn, _ops)
@@ -252,7 +265,7 @@ def patient_history(conn: sqlite3.Connection, patient_id: int) -> Dict:
         patient = _require_patient(c, patient_id)
         
         visits = c.execute('''
-            SELECT v.visit_id, v.visit_datetime, v.visit_type, v.visit_status,
+            SELECT v.visit_id, v.visit_datetime AS visit_time, v.visit_type, v.visit_status,
                    d.doctor_name, v.complaint
             FROM visit v
             JOIN doctor d ON d.doctor_id = v.doctor_id
@@ -265,7 +278,7 @@ def patient_history(conn: sqlite3.Connection, patient_id: int) -> Dict:
             'visits': [dict(v) for v in visits]
         }
     
-    return _execute_in_transaction(conn, _ops)
+    return _read(conn, _ops)
 
 
 def get_patients(conn: sqlite3.Connection, query: str = '') -> List[Dict]:
@@ -281,14 +294,15 @@ def get_patients(conn: sqlite3.Connection, query: str = '') -> List[Dict]:
     """
     def _ops(c):
         if query:
+            like = '%' + str(query).replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
             rows = c.execute('''
                 SELECT p.*, COUNT(v.visit_id) as visit_count
                 FROM patient p
                 LEFT JOIN visit v ON v.patient_id = p.patient_id
-                WHERE p.patient_name LIKE ? OR p.phone LIKE ?
+                WHERE p.patient_name LIKE ? ESCAPE '\\' OR p.phone LIKE ? ESCAPE '\\'
                 GROUP BY p.patient_id
                 ORDER BY p.patient_name
-            ''', (f'%{query}%', f'%{query}%')).fetchall()
+            ''', (like, like)).fetchall()
         else:
             rows = c.execute('''
                 SELECT p.*, COUNT(v.visit_id) as visit_count
@@ -299,7 +313,7 @@ def get_patients(conn: sqlite3.Connection, query: str = '') -> List[Dict]:
             ''').fetchall()
         return [dict(r) for r in rows]
     
-    return _execute_in_transaction(conn, _ops)
+    return _read(conn, _ops)
 
 
 # ===== Doctor Services =====
@@ -309,32 +323,31 @@ def get_doctors(conn: sqlite3.Connection) -> List[Dict]:
     def _ops(c):
         rows = c.execute('SELECT * FROM doctor ORDER BY doctor_id').fetchall()
         return [dict(r) for r in rows]
-    return _execute_in_transaction(conn, _ops)
+    return _read(conn, _ops)
 
 
 def create_doctor(conn: sqlite3.Connection, data: Dict) -> Dict:
     """Create a new doctor."""
     def _ops(c):
-        required = ['doctor_name', 'department', 'consultation_fee', 'shift']
-        for field in required:
-            if not data.get(field):
-                raise BusinessRuleError('VALIDATION_ERROR', f'Missing required field: {field}')
-        
+        if not isinstance(data, dict):
+            raise ValidationError('Request body must be a JSON object')
+        name = req_str(data.get('doctor_name'), 'doctor_name', 100)
+        dept = req_str(data.get('department'), 'department', 100)
+        fee = req_number(data.get('consultation_fee') if data.get('consultation_fee') not in ('', None)
+                         else None, 'consultation_fee')
+        shift = req_str(data.get('shift'), 'shift', 20)
         cur = c.execute('''
             INSERT INTO doctor (doctor_name, department, specialization, phone,
                                consultation_fee, shift, availability_status)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (
-            data['doctor_name'],
-            data['department'],
-            data.get('specialization'),
-            data.get('phone'),
-            data['consultation_fee'],
-            data['shift'],
-            data.get('availability_status', 'Available')
+            name, dept,
+            opt_str(data.get('specialization'), 'specialization', 100),
+            opt_str(_text(data.get('phone')), 'phone', 20),
+            fee, shift,
+            opt_str(data.get('availability_status'), 'availability_status', 20) or 'Available',
         ))
         doctor_id = cur.lastrowid
-        register_insert('doctor', doctor_id)
         return {'doctor_id': doctor_id}
     return _execute_in_transaction(conn, _ops)
 
@@ -344,21 +357,27 @@ def update_doctor(conn: sqlite3.Connection, doctor_id: int, data: Dict) -> Dict:
     def _ops(c):
         _require_doctor(c, doctor_id)
         
-        allowed = ['doctor_name', 'department', 'specialization', 'phone',
-                  'consultation_fee', 'shift', 'availability_status']
+        if not isinstance(data, dict):
+            raise ValidationError('Request body must be a JSON object')
         updates = []
         values = []
-        for field in allowed:
+        for field in ['doctor_name', 'department', 'shift', 'availability_status']:
             if field in data:
                 updates.append(f'{field} = ?')
-                values.append(data[field])
+                values.append(req_str(data[field], field, 100))
+        for field in ['specialization', 'phone']:
+            if field in data:
+                updates.append(f'{field} = ?')
+                values.append(opt_str(_text(data[field]), field, 100))
+        if 'consultation_fee' in data:
+            updates.append('consultation_fee = ?')
+            values.append(req_number(data['consultation_fee'], 'consultation_fee'))
         
         if not updates:
             raise BusinessRuleError('VALIDATION_ERROR', 'No valid fields to update')
         
         values.append(doctor_id)
         c.execute(f'UPDATE doctor SET {", ".join(updates)} WHERE doctor_id = ?', values)
-        register_update('doctor', doctor_id)
         return {'doctor_id': doctor_id}
     return _execute_in_transaction(conn, _ops)
 
@@ -370,28 +389,22 @@ def get_medicines(conn: sqlite3.Connection) -> List[Dict]:
     def _ops(c):
         rows = c.execute('SELECT * FROM medicine ORDER BY medicine_id').fetchall()
         return [dict(r) for r in rows]
-    return _execute_in_transaction(conn, _ops)
+    return _read(conn, _ops)
 
 
 def create_medicine(conn: sqlite3.Connection, data: Dict) -> Dict:
     """Create a new medicine."""
     def _ops(c):
-        required = ['medicine_name', 'price_per_unit', 'stock_quantity']
-        for field in required:
-            if data.get(field) is None:
-                raise BusinessRuleError('VALIDATION_ERROR', f'Missing required field: {field}')
-        
+        if not isinstance(data, dict):
+            raise ValidationError('Request body must be a JSON object')
+        name = req_str(data.get('medicine_name'), 'medicine_name', 100)
+        price = req_number(data.get('price_per_unit'), 'price_per_unit')
+        stock = req_int(data.get('stock_quantity'), 'stock_quantity')
         cur = c.execute('''
             INSERT INTO medicine (medicine_name, manufacturer, price_per_unit, stock_quantity)
             VALUES (?, ?, ?, ?)
-        ''', (
-            data['medicine_name'],
-            data.get('manufacturer'),
-            data['price_per_unit'],
-            data['stock_quantity']
-        ))
+        ''', (name, opt_str(data.get('manufacturer'), 'manufacturer', 100), price, stock))
         medicine_id = cur.lastrowid
-        register_insert('medicine', medicine_id)
         return {'medicine_id': medicine_id}
     return _execute_in_transaction(conn, _ops)
 
@@ -400,13 +413,11 @@ def restock_medicine(conn: sqlite3.Connection, medicine_id: int, quantity: int) 
     """Increase medicine stock."""
     def _ops(c):
         _require_medicine(c, medicine_id)
-        if quantity <= 0:
-            raise BusinessRuleError('VALIDATION_ERROR', 'Quantity must be positive')
+        quantity_ = req_int(quantity, 'quantity', minimum=1, maximum=1_000_000)
         c.execute(
             'UPDATE medicine SET stock_quantity = stock_quantity + ? WHERE medicine_id = ?',
-            (quantity, medicine_id)
+            (quantity_, medicine_id)
         )
-        register_update('medicine', medicine_id)
         row = c.execute('SELECT stock_quantity FROM medicine WHERE medicine_id = ?', (medicine_id,)).fetchone()
         return {'medicine_id': medicine_id, 'stock_quantity': row['stock_quantity']}
     return _execute_in_transaction(conn, _ops)
@@ -420,7 +431,7 @@ def get_low_stock_medicines(conn: sqlite3.Connection, threshold: int = 20) -> Li
             (threshold,)
         ).fetchall()
         return [dict(r) for r in rows]
-    return _execute_in_transaction(conn, _ops)
+    return _read(conn, _ops)
 
 
 # ===== Bed Services =====
@@ -429,7 +440,7 @@ def get_beds(conn: sqlite3.Connection) -> Dict:
     """Get beds grouped by ward with patient info for occupied beds."""
     def _ops(c):
         rows = c.execute('''
-            SELECT b.*, v.patient_id, p.patient_name
+            SELECT b.*, v.visit_id, v.patient_id, p.patient_name
             FROM bed b
             LEFT JOIN visit v ON v.bed_id = b.bed_id AND v.visit_status = 'Admitted'
             LEFT JOIN patient p ON p.patient_id = v.patient_id
@@ -441,12 +452,9 @@ def get_beds(conn: sqlite3.Connection) -> Dict:
             ward = row['ward_type']
             if ward not in result:
                 result[ward] = []
-            bed_data = dict(row)
-            bed_data['visit_id'] = row['patient_id']  # This is actually visit_id from join
-            bed_data['patient_name'] = row['patient_name']
-            result[ward].append(bed_data)
+            result[ward].append(dict(row))
         return result
-    return _execute_in_transaction(conn, _ops)
+    return _read(conn, _ops)
 
 
 def create_bed(conn: sqlite3.Connection, ward_type: str, daily_charge: float) -> Dict:
@@ -454,10 +462,9 @@ def create_bed(conn: sqlite3.Connection, ward_type: str, daily_charge: float) ->
     def _ops(c):
         cur = c.execute(
             'INSERT INTO bed (ward_type, daily_charge) VALUES (?, ?)',
-            (ward_type, daily_charge)
+            (req_str(ward_type, 'ward_type', 20), req_number(daily_charge, 'daily_charge'))
         )
         bed_id = cur.lastrowid
-        register_insert('bed', bed_id)
         return {'bed_id': bed_id}
     return _execute_in_transaction(conn, _ops)
 
@@ -466,11 +473,19 @@ def set_bed_status(conn: sqlite3.Connection, bed_id: int, status: str) -> Dict:
     """Update bed status."""
     def _ops(c):
         _require_bed(c, bed_id)
-        valid_statuses = ['Free', 'Occupied', 'Cleaning']
-        if status not in valid_statuses:
-            raise BusinessRuleError('VALIDATION_ERROR', f'Invalid status: {status}')
-        c.execute('UPDATE bed SET bed_status = ? WHERE bed_id = ?', (status, bed_id))
-        register_update('bed', bed_id)
+        new_status = req_choice(status, 'status', ['Free', 'Occupied', 'Cleaning'])
+        # A bed that holds an admitted patient must stay Occupied; and Occupied is only
+        # meaningful for a bed with an admitted patient (allot_bed sets it).
+        admitted = c.execute(
+            "SELECT visit_id FROM visit WHERE bed_id = ? AND visit_status = 'Admitted'", (bed_id,)
+        ).fetchone()
+        if admitted and new_status != 'Occupied':
+            raise BusinessRuleError(BED_IN_USE,
+                f'Bed {bed_id} holds admitted visit {admitted["visit_id"]}; discharge the patient first')
+        if not admitted and new_status == 'Occupied':
+            raise BusinessRuleError(BAD_STATUS,
+                f'Bed {bed_id} has no admitted patient; use "Allot bed" on a visit instead')
+        c.execute('UPDATE bed SET bed_status = ? WHERE bed_id = ?', (new_status, bed_id))
         row = c.execute('SELECT bed_id, bed_status FROM bed WHERE bed_id = ?', (bed_id,)).fetchone()
         return {'bed_id': row['bed_id'], 'bed_status': row['bed_status']}
     return _execute_in_transaction(conn, _ops)
@@ -486,8 +501,9 @@ def get_visits(conn: sqlite3.Connection, status: str = '', type: str = '',
         params = []
         
         if status:
-            conditions.append('v.visit_status = ?')
-            params.append(status)
+            statuses = [s.strip() for s in str(status).split(',') if s.strip()]
+            conditions.append('v.visit_status IN (%s)' % ','.join('?' * len(statuses)))
+            params.extend(statuses)
         if type:
             conditions.append('v.visit_type = ?')
             params.append(type)
@@ -498,15 +514,16 @@ def get_visits(conn: sqlite3.Connection, status: str = '', type: str = '',
         where = 'WHERE ' + ' AND '.join(conditions) if conditions else ''
         
         rows = c.execute(f'''
-            SELECT v.*, p.patient_name, d.doctor_name
+            SELECT v.*, p.patient_name, d.doctor_name, b.bill_id
             FROM visit v
             JOIN patient p ON p.patient_id = v.patient_id
             JOIN doctor d ON d.doctor_id = v.doctor_id
+            LEFT JOIN bill b ON b.visit_id = v.visit_id
             {where}
             ORDER BY v.visit_datetime DESC
         ''', params).fetchall()
         return [dict(r) for r in rows]
-    return _execute_in_transaction(conn, _ops)
+    return _read(conn, _ops)
 
 
 def get_visit_summary(conn: sqlite3.Connection, visit_id: int) -> Dict:
@@ -547,7 +564,7 @@ def get_visit_summary(conn: sqlite3.Connection, visit_id: int) -> Dict:
             'days_stayed': days_stayed,
             'bill': dict(bill) if bill else None
         }
-    return _execute_in_transaction(conn, _ops)
+    return _read(conn, _ops)
 
 
 def book_appointment(conn: sqlite3.Connection, patient_id: int, doctor_id: int, 
@@ -566,10 +583,13 @@ def book_appointment(conn: sqlite3.Connection, patient_id: int, doctor_id: int,
         Dict with visit_id
     """
     def _ops(c):
-        _require_patient(c, patient_id)
-        _require_doctor(c, doctor_id)
-        
-        slot_dt = _parse_datetime(slot)
+        pid = req_int(patient_id, 'patient_id')
+        did = req_int(doctor_id, 'doctor_id')
+        slot_n = normalize_timestamp(slot, 'slot')
+        complaint_n = req_str(complaint, 'complaint', 300)
+        _require_patient(c, pid)
+        _require_doctor(c, did)
+        slot_dt = _parse_datetime(slot_n)
         if slot_dt <= datetime.now():
             raise BusinessRuleError(SLOT_IN_PAST, 'Appointment must be in the future')
         
@@ -577,18 +597,17 @@ def book_appointment(conn: sqlite3.Connection, patient_id: int, doctor_id: int,
         existing = c.execute('''
             SELECT visit_id FROM visit 
             WHERE doctor_id = ? AND visit_datetime = ? AND visit_status <> 'Cancelled'
-        ''', (doctor_id, slot)).fetchone()
+        ''', (did, slot_n)).fetchone()
         if existing:
             raise BusinessRuleError(SLOT_TAKEN, 
-                f'Doctor {doctor_id} already has an appointment at that time')
+                f'Doctor {did} already has an appointment at that time')
         
         cur = c.execute('''
             INSERT INTO visit (patient_id, doctor_id, visit_type, visit_datetime, 
                               complaint, visit_status)
             VALUES (?, ?, 'Appointment', ?, ?, 'Scheduled')
-        ''', (patient_id, doctor_id, slot, complaint))
+        ''', (pid, did, slot_n, complaint_n))
         visit_id = cur.lastrowid
-        register_insert('visit', visit_id)
         return {'visit_id': visit_id}
     
     try:
@@ -607,7 +626,6 @@ def cancel_appointment(conn: sqlite3.Connection, visit_id: int) -> Dict:
         if visit['visit_status'] != 'Scheduled':
             raise BusinessRuleError(BAD_STATUS, 'Only Scheduled visits can be cancelled')
         c.execute('UPDATE visit SET visit_status = ? WHERE visit_id = ?', ('Cancelled', visit_id))
-        register_update('visit', visit_id)
         return {'visit_id': visit_id}
     return _execute_in_transaction(conn, _ops)
 
@@ -621,7 +639,6 @@ def start_treatment(conn: sqlite3.Connection, visit_id: int) -> Dict:
                 f'Cannot start treatment from status {visit["visit_status"]}')
         c.execute('UPDATE visit SET visit_status = ? WHERE visit_id = ?', 
                  ('Under Treatment', visit_id))
-        register_update('visit', visit_id)
         row = c.execute('SELECT visit_id, visit_status FROM visit WHERE visit_id = ?', 
                        (visit_id,)).fetchone()
         return {'visit_id': row['visit_id'], 'visit_status': row['visit_status']}
@@ -646,12 +663,16 @@ def register_emergency(conn: sqlite3.Connection, patient_id: int, complaint: str
         Dict with visit_id, doctor_id, doctor_name
     """
     def _ops(c):
-        _require_patient(c, patient_id)
-        
-        if not 1 <= triage <= 4:
+        pid = req_int(patient_id, 'patient_id')
+        _require_patient(c, pid)
+        try:
+            triage_n = req_int(triage, 'triage_level')
+        except ValidationError:
+            raise BusinessRuleError(BAD_TRIAGE, 'Triage level must be a whole number between 1 and 4')
+        if not 1 <= triage_n <= 4:
             raise BusinessRuleError(BAD_TRIAGE, 'Triage level must be between 1 and 4')
-        
-        arrival_dt = arrival or _now_str()
+        complaint_n = req_str(complaint, 'complaint', 300)
+        arrival_dt = normalize_timestamp(arrival, 'arrival') if arrival else _now_str()
         
         # Find Emergency doctor with fewest Waiting/Under Treatment visits
         doctor_row = c.execute('''
@@ -676,9 +697,8 @@ def register_emergency(conn: sqlite3.Connection, patient_id: int, complaint: str
             INSERT INTO visit (patient_id, doctor_id, visit_type, visit_datetime, 
                               complaint, triage_level, visit_status)
             VALUES (?, ?, 'Emergency', ?, ?, ?, 'Waiting')
-        ''', (patient_id, doctor_id, arrival_dt, complaint, triage))
+        ''', (pid, doctor_id, arrival_dt, complaint_n, triage_n))
         visit_id = cur.lastrowid
-        register_insert('visit', visit_id)
         
         return {
             'visit_id': visit_id,
@@ -693,8 +713,8 @@ def emergency_queue(conn: sqlite3.Connection) -> Dict:
     """Get emergency waiting queue with cursor-style output."""
     def _ops(c):
         rows = c.execute('''
-            SELECT v.visit_id, p.patient_name, v.triage_level, v.complaint,
-                   d.doctor_name, v.visit_datetime
+            SELECT v.visit_id, v.patient_id, p.patient_name, v.triage_level, v.complaint,
+                   d.doctor_name, v.visit_datetime, v.visit_status
             FROM visit v
             JOIN patient p ON p.patient_id = v.patient_id
             JOIN doctor d ON d.doctor_id = v.doctor_id
@@ -725,7 +745,7 @@ def emergency_queue(conn: sqlite3.Connection) -> Dict:
             'rows': [dict(r) for r in rows],
             'console_lines': console_lines
         }
-    return _execute_in_transaction(conn, _ops)
+    return _read(conn, _ops)
 
 
 # ===== Bed Allotment =====
@@ -770,7 +790,6 @@ def allot_bed(conn: sqlite3.Connection, visit_id: int, ward_type: str) -> Dict:
         ).rowcount
         if updated == 0:
             raise BusinessRuleError(BED_TAKEN, f'Bed {bed_id} was taken, try again')
-        register_update('bed', bed_id)
         
         # Update visit with bed, admit_time, and status
         admit_time = _now_str()
@@ -778,7 +797,6 @@ def allot_bed(conn: sqlite3.Connection, visit_id: int, ward_type: str) -> Dict:
             UPDATE visit SET bed_id = ?, admit_time = ?, visit_status = ?
             WHERE visit_id = ?
         ''', (bed_id, admit_time, 'Admitted', visit_id))
-        register_update('visit', visit_id)
         
         return {'bed_id': bed_id}
     
@@ -811,12 +829,10 @@ def discharge_patient(conn: sqlite3.Connection, visit_id: int) -> Dict:
             UPDATE visit SET visit_status = ?, discharge_time = ?
             WHERE visit_id = ?
         ''', ('Discharged', discharge_time, visit_id))
-        register_update('visit', visit_id)
         
         # Update bed if was admitted
         if bed_id:
             c.execute('UPDATE bed SET bed_status = ? WHERE bed_id = ?', ('Cleaning', bed_id))
-            register_update('bed', bed_id)
         
         # Calculate days stayed
         days_row = c.execute('SELECT fn_days_stayed(?) as days', (visit_id,)).fetchone()
@@ -840,7 +856,7 @@ def get_prescriptions(conn: sqlite3.Connection, visit_id: int) -> List[Dict]:
             ORDER BY pr.prescription_id
         ''', (visit_id,)).fetchall()
         return [dict(r) for r in rows]
-    return _execute_in_transaction(conn, _ops)
+    return _read(conn, _ops)
 
 
 def add_prescription(conn: sqlite3.Connection, visit_id: int, medicine_id: int,
@@ -860,22 +876,27 @@ def add_prescription(conn: sqlite3.Connection, visit_id: int, medicine_id: int,
         Dict with prescription_id and stock_after
     """
     def _ops(c):
-        visit = _require_visit(c, visit_id)
+        vid = req_int(visit_id, 'visit_id')
+        mid = req_int(medicine_id, 'medicine_id')
+        days = req_int(duration_days, 'duration_days')
+        qty = req_int(quantity, 'quantity')
+        dosage_n = opt_str(dosage, 'dosage', 100)
+        visit = _require_visit(c, vid)
         if visit['visit_status'] == 'Cancelled':
             raise BusinessRuleError(VISIT_CLOSED, 'Cannot prescribe for cancelled visit')
         
-        _require_medicine(c, medicine_id)
+        _require_medicine(c, mid)
         
         cur = c.execute('''
             INSERT INTO prescription (visit_id, medicine_id, dosage, duration_days, quantity)
             VALUES (?, ?, ?, ?, ?)
-        ''', (visit_id, medicine_id, dosage, duration_days, quantity))
+        ''', (vid, mid, dosage_n, days, qty))
         
         prescription_id = cur.lastrowid
         
         # Get updated stock
         stock_row = c.execute(
-            'SELECT stock_quantity FROM medicine WHERE medicine_id = ?', (medicine_id,)
+            'SELECT stock_quantity FROM medicine WHERE medicine_id = ?', (mid,)
         ).fetchone()
         
         return {
@@ -900,11 +921,10 @@ def delete_prescription(conn: sqlite3.Connection, prescription_id: int) -> Dict:
             (prescription_id,)
         ).fetchone()
         if not row:
-            raise BusinessRuleError(VISIT_NOT_FOUND, f'Prescription {prescription_id} not found')
+            raise NotFoundError(PRESCRIPTION_NOT_FOUND, f'Prescription {prescription_id} not found')
         
         medicine_id = row['medicine_id']
         c.execute('DELETE FROM prescription WHERE prescription_id = ?', (prescription_id,))
-        register_delete('prescription', prescription_id)
         
         # Get updated stock
         stock_row = c.execute(
@@ -945,7 +965,7 @@ def generate_bill(conn: sqlite3.Connection, visit_id: int) -> Dict:
         
         # Medicine cost via UDF
         medicine_row = c.execute('SELECT fn_medicine_cost(?) as cost', (visit_id,)).fetchone()
-        medicine_charge = medicine_row['cost'] if medicine_row else 0
+        medicine_charge = round(medicine_row['cost'], 2) if medicine_row else 0
         
         # Bed charge
         bed_charge = 0
@@ -953,9 +973,9 @@ def generate_bill(conn: sqlite3.Connection, visit_id: int) -> Dict:
             bed = _require_bed(c, visit['bed_id'])
             days_row = c.execute('SELECT fn_days_stayed(?) as days', (visit_id,)).fetchone()
             days_stayed = days_row['days'] if days_row else 0
-            bed_charge = bed['daily_charge'] * days_stayed
+            bed_charge = round(bed['daily_charge'] * days_stayed, 2)
         
-        total_amount = consultation_charge + medicine_charge + bed_charge
+        total_amount = round(consultation_charge + medicine_charge + bed_charge, 2)
         
         cur = c.execute('''
             INSERT INTO bill (visit_id, consultation_charge, medicine_charge, 
@@ -964,7 +984,6 @@ def generate_bill(conn: sqlite3.Connection, visit_id: int) -> Dict:
         ''', (visit_id, consultation_charge, medicine_charge, bed_charge, total_amount))
         
         bill_id = cur.lastrowid
-        register_insert('bill', bill_id)
         
         return {
             'bill_id': bill_id,
@@ -998,7 +1017,7 @@ def get_bills(conn: sqlite3.Connection, status: str = '') -> List[Dict]:
                 ORDER BY b.bill_date DESC, b.bill_id
             ''').fetchall()
         return [dict(r) for r in rows]
-    return _execute_in_transaction(conn, _ops)
+    return _read(conn, _ops)
 
 
 def get_pending_bills(conn: sqlite3.Connection, min_amount: float = 0) -> Dict:
@@ -1030,12 +1049,13 @@ def get_pending_bills(conn: sqlite3.Connection, min_amount: float = 0) -> Dict:
         console_lines.append(f"{len(rows)} bill(s) pending, total Rs. {total:.2f}")
         
         return {
+            'columns': ['bill_id', 'patient_name', 'bill_date', 'total_amount'],
             'rows': [list(r) for r in rows],  # Preserve column order
             'console_lines': console_lines,
             'count': len(rows),
             'total': total
         }
-    return _execute_in_transaction(conn, _ops)
+    return _read(conn, _ops)
 
 
 def pay_bill(conn: sqlite3.Connection, bill_id: int, payment_mode: str) -> Dict:
@@ -1045,7 +1065,7 @@ def pay_bill(conn: sqlite3.Connection, bill_id: int, payment_mode: str) -> Dict:
             'SELECT bill_id, payment_status FROM bill WHERE bill_id = ?', (bill_id,)
         ).fetchone()
         if not row:
-            raise BusinessRuleError(VISIT_NOT_FOUND, f'Bill {bill_id} not found')
+            raise NotFoundError(BILL_NOT_FOUND, f'Bill {bill_id} not found')
         
         if row['payment_status'] == 'Paid':
             raise BusinessRuleError(BAD_STATUS, 'Bill already paid')
@@ -1056,7 +1076,6 @@ def pay_bill(conn: sqlite3.Connection, bill_id: int, payment_mode: str) -> Dict:
         c.execute('''
             UPDATE bill SET payment_mode = ?, payment_status = ? WHERE bill_id = ?
         ''', (payment_mode, 'Paid', bill_id))
-        register_update('bill', bill_id)
         
         updated = c.execute(
             'SELECT bill_id, payment_status FROM bill WHERE bill_id = ?', (bill_id,)
@@ -1101,7 +1120,7 @@ def get_lookups(conn: sqlite3.Connection) -> Dict:
             'wards': [r['ward_type'] for r in wards],
             'departments': [r['department'] for r in departments]
         }
-    return _execute_in_transaction(conn, _ops)
+    return _read(conn, _ops)
 
 
 def get_dashboard(conn: sqlite3.Connection) -> Dict:
@@ -1164,26 +1183,4 @@ def get_dashboard(conn: sqlite3.Connection) -> Dict:
             'low_stock': [dict(r) for r in low_stock],
             'recent_audit': [dict(r) for r in recent_audit]
         }
-    return _execute_in_transaction(conn, _ops)
-
-
-def reset_database(conn: sqlite3.Connection) -> Dict:
-    """Rebuild database from scratch."""
-    # This is called via init_db.py, not directly on connection
-    # For API, we'll call init_db.main()
-    import subprocess
-    import sys
-    result = subprocess.run([sys.executable, '-m', 'db.init_db'], capture_output=True, text=True)
-    if result.returncode != 0:
-        raise BusinessRuleError('INTERNAL_ERROR', f'Database reset failed: {result.stderr}')
-    
-    # Reconnect and get counts
-    from db.connection import get_connection
-    from config import DB_PATH
-    new_conn = get_connection(DB_PATH)
-    counts = {}
-    for table in ['patient', 'doctor', 'bed', 'medicine', 'visit', 'prescription', 'bill', 'audit_log']:
-        counts[table] = new_conn.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
-    new_conn.close()
-    
-    return {'counts': counts}
+    return _read(conn, _ops)

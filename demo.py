@@ -5,6 +5,7 @@ Steps depend on earlier ones; run_demo_step checks prerequisites.
 Each run returns checks[] (green ticks on the UI) plus the inspector.
 """
 import sqlite3
+from errors import BusinessRuleError, NotFoundError
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 
@@ -283,117 +284,55 @@ def get_demo_steps(conn: sqlite3.Connection) -> Dict:
     }
 
 
+# Steps that ran successfully, per database file.  (In-process, like the contract's
+# "server-side dict"; cleared by /api/reset.)  Steps that create data are only reported
+# complete while that data still exists, so an external reset cannot leave stale state.
+_COMPLETED = {}
+
+_EVIDENCE = {
+    'T1.1': "SELECT 1 FROM patient WHERE patient_id = 113",
+    'T1.2': "SELECT 1 FROM visit WHERE visit_id = 421",
+    'T2.2': "SELECT 1 FROM visit WHERE visit_id = 422",
+    'T3.1': "SELECT 1 FROM visit WHERE visit_id = 422 AND visit_status IN ('Under Treatment','Admitted','Discharged')",
+    'T3.2': "SELECT 1 FROM prescription WHERE prescription_id = 623",
+    'T4.2': "SELECT 1 FROM visit WHERE visit_id = 422 AND bed_id = 307",
+    'T5.1': "SELECT 1 FROM visit WHERE visit_id = 422 AND visit_status = 'Discharged'",
+    'T5.3': "SELECT 1 FROM bill WHERE bill_id = 712",
+    'T5.4': "SELECT 1 FROM bill WHERE bill_id = 712 AND payment_status = 'Paid'",
+}
+_CONTEXT_KEYS = {'T1.1': ('patient_113', 113), 'T1.2': ('visit_421', 421), 'T2.2': ('visit_422', 422),
+                 'T3.2': ('prescription_623', 623), 'T4.2': ('bed_307_allotment', 307), 'T5.3': ('bill_712', 712)}
+
+
+def _db_key(conn):
+    row = conn.execute("PRAGMA database_list").fetchone()
+    return (row[2] if row else '') or ':memory:'
+
+
+def clear_demo_state(db_key=None):
+    if db_key is None:
+        _COMPLETED.clear()
+    else:
+        _COMPLETED.pop(db_key, None)
+
+
 def get_demo_state(conn: sqlite3.Connection) -> Dict:
-    """Return current demo state (completed steps, context)."""
-    # Check which steps have been completed by looking for expected data
-    completed = []
-    context = {}
-    
-    # Check T1.1 - patient 113 exists
-    p113 = conn.execute("SELECT 1 FROM patient WHERE patient_id = 113").fetchone()
-    if p113:
-        completed.append("T1.1")
-        context['patient_113'] = 113
-    
-    # Check T1.2 - visit 421 exists
-    v421 = conn.execute("SELECT 1 FROM visit WHERE visit_id = 421 AND visit_status = 'Scheduled'").fetchone()
-    if v421:
-        completed.append("T1.2")
-        context['visit_421'] = 421
-    
-    # Check T1.3 - double booking was attempted (no specific check, just that it's in state)
-    if v421 and conn.execute("SELECT 1 FROM visit WHERE patient_id = 101 AND doctor_id = 202 AND visit_datetime = (SELECT visit_datetime FROM visit WHERE visit_id = 421)").fetchone() is None:
-        completed.append("T1.3")
-    
-    # Check T2.1 - queue viewed (no persistent state)
-    
-    # Check T2.2 - visit 422 exists
-    v422 = conn.execute("SELECT 1 FROM visit WHERE visit_id = 422").fetchone()
-    if v422:
-        completed.append("T2.2")
-        context['visit_422'] = 422
-    
-    # Check T2.3 - bad triage attempted
-    if v422:
-        completed.append("T2.3")
-    
-    # Check T2.4 - queue viewed again
-    if v422:
-        completed.append("T2.4")
-    
-    # Check T3.1 - visit 422 Under Treatment
-    v422_ut = conn.execute("SELECT 1 FROM visit WHERE visit_id = 422 AND visit_status = 'Under Treatment'").fetchone()
-    if v422_ut:
-        completed.append("T3.1")
-    
-    # Check T3.2 - prescription 623 exists
-    p623 = conn.execute("SELECT 1 FROM prescription WHERE prescription_id = 623").fetchone()
-    if p623:
-        completed.append("T3.2")
-        context['prescription_623'] = 623
-    
-    # Check T3.3 - ORS failed
-    if p623:
-        completed.append("T3.3")
-    
-    # Check T4.1 - free ICU beds checked (no persistent state)
-    
-    # Check T4.2 - bed 307 allotted to visit 422
-    v422_adm = conn.execute("SELECT 1 FROM visit WHERE visit_id = 422 AND visit_status = 'Admitted' AND bed_id = 307").fetchone()
-    b307_occ = conn.execute("SELECT 1 FROM bed WHERE bed_id = 307 AND bed_status = 'Occupied'").fetchone()
-    if v422_adm and b307_occ:
-        completed.append("T4.2")
-        context['bed_307_allotment'] = 307
-    
-    # Check T4.3 - no free bed
-    if v422_adm:
-        completed.append("T4.3")
-    
-    # Check T4.4 - uq_active_bed blocks
-    completed.append("T4.4")
-    
-    # Check T5.1 - visit 422 discharged
-    v422_dis = conn.execute("SELECT 1 FROM visit WHERE visit_id = 422 AND visit_status = 'Discharged'").fetchone()
-    if v422_dis:
-        completed.append("T5.1")
-    
-    # Check T5.2 - functions
-    if v422_dis:
-        completed.append("T5.2")
-    
-    # Check T5.3 - bill 712 exists
-    b712 = conn.execute("SELECT 1 FROM bill WHERE bill_id = 712 AND total_amount = 6015").fetchone()
-    if b712:
-        completed.append("T5.3")
-        context['bill_712'] = 712
-    
-    # Check T5.4 - bill 712 paid
-    b712_paid = conn.execute("SELECT 1 FROM bill WHERE bill_id = 712 AND payment_status = 'Paid' AND payment_mode = 'UPI'").fetchone()
-    if b712_paid:
-        completed.append("T5.4")
-    
-    # Check T5.5 - pending bills
-    completed.append("T5.5")
-    
-    # Check T6.1 - audit trail
-    audit_rows = conn.execute("SELECT COUNT(*) FROM audit_log WHERE log_id BETWEEN 13 AND 20").fetchone()[0]
-    if audit_rows == 8:
-        completed.append("T6.1")
-    
-    # Check T6.2 - audit protected
-    completed.append("T6.2")
-    
-    # Check T6.3 - FK blocks delete
-    completed.append("T6.3")
-    
-    # Check T6.4 - rollback demo
-    completed.append("T6.4")
-    
-    return {
-        "ok": True,
-        "message": "Demo state retrieved",
-        "data": {"completed": completed, "context": context}
-    }
+    """Completed steps (those that ran and whose data still exists) and the ids they created."""
+    recorded = _COMPLETED.get(_db_key(conn), set())
+    order = [s['id'] for t in DEMO_STEPS for s in t['steps']]
+    completed, context = [], {}
+    for sid in order:
+        if sid not in recorded:
+            continue
+        ev = _EVIDENCE.get(sid)
+        if ev and conn.execute(ev).fetchone() is None:
+            continue
+        completed.append(sid)
+        if sid in _CONTEXT_KEYS:
+            k, v = _CONTEXT_KEYS[sid]
+            context[k] = v
+    return {"ok": True, "message": "Demo state retrieved",
+            "data": {"completed": completed, "context": context}}
 
 
 def run_demo_step(conn: sqlite3.Connection, step_id: str) -> Dict:
@@ -410,14 +349,14 @@ def run_demo_step(conn: sqlite3.Connection, step_id: str) -> Dict:
             break
     
     if not step:
-        raise ValueError(f"Demo step {step_id} not found")
+        raise NotFoundError('STEP_NOT_FOUND', f"Demo step {step_id} not found")
     
     # Check prerequisites
     state = get_demo_state(conn)
     completed = state['data']['completed']
     for prereq in step['prereqs']:
         if prereq not in completed:
-            raise ValueError(f"Prerequisite step {prereq} not completed")
+            raise BusinessRuleError('STEP_ORDER', f"Prerequisite step {prereq} has not been run yet")
     
     # Execute the step
     checks = []
@@ -456,7 +395,6 @@ def run_demo_step(conn: sqlite3.Connection, step_id: str) -> Dict:
     elif step_id == "T1.3":
         # Attempt double booking
         from services import book_appointment
-        from errors import BusinessRuleError
         try:
             tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')
             tomorrow = tomorrow.split(' ')[0] + ' 10:00:00'
@@ -508,7 +446,6 @@ def run_demo_step(conn: sqlite3.Connection, step_id: str) -> Dict:
     elif step_id == "T2.3":
         # Attempt invalid triage
         from services import register_emergency
-        from errors import BusinessRuleError
         try:
             register_emergency(conn, 109, 'Chest pain', 7)
             checks = [{"label": "Error BAD_TRIAGE", "passed": False, "detail": "Expected BAD_TRIAGE error but registration succeeded"}]
@@ -564,7 +501,6 @@ def run_demo_step(conn: sqlite3.Connection, step_id: str) -> Dict:
     elif step_id == "T3.3":
         # Attempt ORS Sachet
         from services import add_prescription
-        from errors import BusinessRuleError
         try:
             add_prescription(conn, 422, 512, '1-0-0', 5, 2)
             checks = [{"label": "Error INSUFFICIENT_STOCK", "passed": False, "detail": "Expected INSUFFICIENT_STOCK but prescription succeeded"}]
@@ -607,7 +543,6 @@ def run_demo_step(conn: sqlite3.Connection, step_id: str) -> Dict:
     elif step_id == "T4.3":
         # Attempt allot ICU bed to 416
         from services import allot_bed
-        from errors import BusinessRuleError
         try:
             allot_bed(conn, 416, 'ICU')
             checks = [{"label": "Error NO_FREE_BED", "passed": False, "detail": "Expected NO_FREE_BED but allotment succeeded"}]
@@ -620,7 +555,6 @@ def run_demo_step(conn: sqlite3.Connection, step_id: str) -> Dict:
     
     elif step_id == "T4.4":
         # Sandbox: force bed 308 onto visit 416
-        from errors import BusinessRuleError
         try:
             conn.execute("BEGIN IMMEDIATE")
             conn.execute("UPDATE visit SET bed_id = 308, visit_status = 'Admitted' WHERE visit_id = 416")
@@ -726,7 +660,6 @@ def run_demo_step(conn: sqlite3.Connection, step_id: str) -> Dict:
     elif step_id == "T6.4":
         # Rollback demo: Paracetamol ok, ORS fails
         from services import add_prescription
-        from errors import BusinessRuleError
         
         # Get initial stocks
         para_stock_before = conn.execute("SELECT stock_quantity FROM medicine WHERE medicine_id = 501").fetchone()['stock_quantity']
@@ -764,9 +697,11 @@ def run_demo_step(conn: sqlite3.Connection, step_id: str) -> Dict:
         artifacts = {"para_stock_before": para_stock_before, "para_stock_after": para_stock_after, "ors_stock_before": ors_stock_before, "ors_stock_after": ors_stock_after}
     
     else:
-        raise ValueError(f"Unknown demo step: {step_id}")
+        raise NotFoundError('STEP_NOT_FOUND', f"Unknown demo step: {step_id}")
     
     all_passed = all(c['passed'] for c in checks)
+    if all_passed:
+        _COMPLETED.setdefault(_db_key(conn), set()).add(step_id)
     
     return {
         "ok": True,
@@ -782,8 +717,9 @@ def run_demo_step(conn: sqlite3.Connection, step_id: str) -> Dict:
     }
 
 
-def reset_demo(conn: sqlite3.Connection) -> Dict:
-    """Reset demo state by reinitializing database."""
-    from db.init_db import init_database
-    init_database()
-    return {"ok": True, "message": "Demo reset complete", "data": {"completed": [], "context": {}}}
+def reset_demo(db_path) -> Dict:
+    """Restore the seeded demonstration data in place (a backup is kept first)."""
+    from db.init_db import reset_in_place
+    clear_demo_state()
+    counts = reset_in_place(db_path)
+    return {'counts': counts, 'backup': str(db_path) + '.pre-reset.bak'}

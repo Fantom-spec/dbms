@@ -32,7 +32,7 @@ from config import DB_PATH
 def db_conn():
     """Get a fresh database connection for testing."""
     from db.init_db import init_database
-    init_database()
+    init_database(force=True, backup=False)
     
     conn = get_connection(DB_PATH)
     yield conn

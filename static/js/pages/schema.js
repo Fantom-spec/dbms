@@ -4,7 +4,7 @@
  */
 
 import { get, post, handle } from '../api.js';
-import { renderTable, showEmptyState } from '../tables.js';
+import { renderTable, showEmptyState, escapeHtml } from '../tables.js';
 import { openInspector } from '../inspector.js';
 
 let schemaData = {
@@ -194,7 +194,7 @@ function renderTableDetails(data, tableName) {
                         <tbody>
         `;
         preview.rows.forEach(row => {
-            html += '<tr>' + row.map(cell => `<td>${cell === null ? '<span class="text-muted">—</span>' : cell}</td>`).join('') + '</tr>';
+            html += '<tr>' + row.map(cell => `<td>${cell === null ? '<span class="text-muted">—</span>' : escapeHtml(String(cell))}</td>`).join('') + '</tr>';
         });
         html += '</tbody></table></div></div>';
     } else {
@@ -560,7 +560,7 @@ async function runSQL() {
                 data.columns.forEach(c => html += `<th>${c}</th>`);
                 html += '</tr></thead><tbody>';
                 data.rows.forEach(row => {
-                    html += '<tr>' + row.map(cell => `<td>${cell === null ? '<span class="text-muted">—</span>' : cell}</td>`).join('') + '</tr>';
+                    html += '<tr>' + row.map(cell => `<td>${cell === null ? '<span class="text-muted">—</span>' : escapeHtml(String(cell))}</td>`).join('') + '</tr>';
                 });
                 html += '</tbody></table></div>';
             } else {

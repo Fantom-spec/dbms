@@ -3,7 +3,7 @@
  * Medicine inventory, restock, prescriptions
  */
 
-import { get, post, del, handle } from '../api.js';
+import { get, post, del, handle, preventDoubleSubmit } from '../api.js';
 import { renderTable } from '../tables.js';
 import { openInspector, formatCurrency, showEmptyState } from '../app.js';
 
@@ -137,19 +137,19 @@ function setupForms() {
     // Quick Prescription Form
     const rxForm = document.getElementById('quickPrescriptionForm');
     if (rxForm) {
-        rxForm.addEventListener('submit', addPrescription);
+        rxForm.addEventListener('submit', preventDoubleSubmit(rxForm, addPrescription));
     }
 
     // Add Medicine Form
     const addMedForm = document.getElementById('addMedicineForm');
     if (addMedForm) {
-        addMedForm.addEventListener('submit', addMedicine);
+        addMedForm.addEventListener('submit', preventDoubleSubmit(addMedForm, addMedicine));
     }
 
     // Add Medicine Admin Form
     const addMedAdminForm = document.getElementById('addMedicineAdminForm');
     if (addMedAdminForm) {
-        addMedAdminForm.addEventListener('submit', addMedicine);
+        addMedAdminForm.addEventListener('submit', preventDoubleSubmit(addMedAdminForm, addMedicine));
     }
 
     // Refresh buttons
@@ -183,9 +183,9 @@ async function restockMedicine(medicineId, quantity) {
     });
 }
 
-async function addMedicine(e) {
-    e.preventDefault();
-    const form = e.target;
+async function addMedicine() {
+    const form = document.querySelector('#addMedicineForm, #addMedicineAdminForm');
+    if (!form) return;
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
     data.stock_quantity = parseInt(data.stock_quantity, 10);
@@ -206,9 +206,9 @@ async function addMedicine(e) {
     });
 }
 
-async function addPrescription(e) {
-    e.preventDefault();
-    const form = e.target;
+async function addPrescription() {
+    const form = document.getElementById('quickPrescriptionForm');
+    if (!form) return;
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
     data.visit_id = parseInt(data.visit_id, 10);
@@ -269,7 +269,7 @@ function renderPrescriptionsTable(data) {
         formatters: {
             currency: (value) => formatCurrency(value),
             actions: (value, row) => `
-                <button class="btn btn-sm btn-outline-danger delete-rx" data-id="${row.prescription_id}" title="Delete">
+                <button class="btn btn-sm btn-outline-danger delete-rx" data-id="${row.prescription_id}" title="Delete" aria-label="Delete Prescription">
                     <i class="bi bi-trash"></i>
                 </button>
             `

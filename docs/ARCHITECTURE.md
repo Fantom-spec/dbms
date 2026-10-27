@@ -564,6 +564,10 @@ Demo and Schema pages are visible to all roles (presentation tools).
 - Every service is atomic; errors roll back and return an envelope, never a stack trace (unexpected errors log server-side and return `kind: "internal"`).
 - One DB connection per request (stored on `flask.g`, closed on teardown), PRAGMAs applied on open.
 - Flask dev server is enough (single presenter machine). No authentication; roles are a simulation, state this in the limitations.
+- **Frontend XSS protection**: All user data rendered in templates and JavaScript is HTML-escaped via `escapeHtml()` utility (in `static/js/tables.js`).
+- **Frontend CSRF protection**: State-changing requests require `X-Requested-With: HospitalApp` header (simple header check, not full token).
+- **Frontend double-submit prevention**: `preventDoubleSubmit()` utility disables submit buttons during async requests (`static/js/api.js`).
+- **Frontend accessibility**: Icon-only buttons have `aria-label` attributes for screen readers.
 
 ---
 
@@ -664,4 +668,5 @@ Split presenting, not understanding: P1 explains schema, triggers, services and 
 
 | Date | By | Change |
 |---|---|---|
+| 2026-10-27 | both | **Security & Frontend Repair**: XSS escaping (escapeHtml in all JS), double-submit prevention (preventDoubleSubmit utility), modal/listener fixes, accessibility labels (aria-label on icon-only buttons), Schema page live ER diagram (removed missing er_diagram.png, uses /api/schema/er), Inspector trigger inference note (triggers_fired inferred from row changes), browser smoke tests (tests/smoke_test.py + tests/smoke_test.sh), updated README with security notes & test checklist |
 | 2026-10-24 | both | Initial final architecture |

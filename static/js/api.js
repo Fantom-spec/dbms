@@ -18,7 +18,8 @@ export async function callApi(method, url, body = null) {
         method: method.toUpperCase(),
         headers: {
             'Content-Type': 'application/json',
-            'X-Role': getCurrentRole()
+            'X-Role': getCurrentRole(),
+            'X-Requested-With': 'HospitalApp'      // CSRF defence: required by the server on writes
         },
         credentials: 'same-origin'
     };
@@ -29,7 +30,18 @@ export async function callApi(method, url, body = null) {
 
     try {
         const response = await fetch(`${API_BASE}${url}`, options);
-        const envelope = await response.json();
+        let envelope;
+        try {
+            envelope = await response.json();
+        } catch (parseErr) {
+            envelope = null;
+        }
+        if (!envelope || typeof envelope !== 'object' || !('ok' in envelope)) {
+            return {
+                ok: false, message: `Unexpected server response (HTTP ${response.status})`, data: null, inspector: null,
+                error: { kind: 'internal', code: 'BAD_RESPONSE', constraint: null, detail: `HTTP ${response.status}` }
+            };
+        }
         return envelope;
     } catch (err) {
         console.error(`API call failed: ${method} ${url}`, err);
@@ -55,14 +67,14 @@ export const del = (url) => callApi('DELETE', url);
  * Get current role from localStorage or default
  */
 function getCurrentRole() {
-    return localStorage.getItem('hospital_role') || 'Admin';
+    try { return localStorage.getItem('hospital_role') || 'Admin'; } catch (e) { return 'Admin'; }
 }
 
 /**
  * Set current role in localStorage
  */
 export function setCurrentRole(role) {
-    localStorage.setItem('hospital_role', role);
+    try { localStorage.setItem('hospital_role', role); } catch (e) { /* storage unavailable */ }
 }
 
 /**
@@ -166,6 +178,39 @@ export function debounce(fn, delay) {
     return (...args) => {
         clearTimeout(timeoutId);
         timeoutId = setTimeout(() => fn(...args), delay);
+    };
+}
+
+/**
+ * Prevent double form submission
+ * Disables the submit button and adds a submitting state
+ * @param {HTMLFormElement} form - The form element
+ * @param {Function} handler - The async handler function
+ * @returns {Function} Event handler that prevents double submission
+ */
+export function preventDoubleSubmit(form, handler) {
+    let isSubmitting = false;
+    return async (e) => {
+        e.preventDefault();
+        if (isSubmitting) return;
+        isSubmitting = true;
+        
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalHtml = submitBtn ? submitBtn.innerHTML : '';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Submitting...';
+        }
+        
+        try {
+            await handler(e);
+        } finally {
+            isSubmitting = false;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalHtml;
+            }
+        }
     };
 }
 

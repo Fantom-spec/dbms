@@ -14,9 +14,9 @@ def db_connection():
     import sys
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from db.init_db import init_database
-    init_database()
+    init_database(force=True, backup=False)
     
-    db_path = Path(__file__).parent.parent / 'hospital.db'
+    from config import DB_PATH as _DBP; from conftest import assert_safe_db; assert_safe_db(_DBP); db_path = Path(_DBP)
     conn = sqlite3.connect(str(db_path), isolation_level=None)
     conn.row_factory = sqlite3.Row
     conn.execute('PRAGMA foreign_keys = ON')

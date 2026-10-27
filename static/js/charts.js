@@ -8,7 +8,7 @@ let chartInstances = {};
 /**
  * Destroy existing chart for a canvas
  */
-function destroyChart(canvasId) {
+export function destroyChart(canvasId) {
     if (chartInstances[canvasId]) {
         chartInstances[canvasId].destroy();
         delete chartInstances[canvasId];

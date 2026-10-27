@@ -3,9 +3,9 @@
  * Bed grid by ward, allot bed, discharge, set bed status
  */
 
-import { get, post, handle } from '../api.js';
-import { renderTable } from '../tables.js';
-import { openInspector, getBedStatusBadgeClass, showLoading } from '../app.js';
+import { get, post, handle, preventDoubleSubmit } from '../api.js';
+import { renderTable, escapeHtml } from '../tables.js';
+import { openInspector, getBedStatusBadgeClass, showLoading, showEmptyState } from '../app.js';
 
 let bedsData = null;
 
@@ -80,7 +80,7 @@ function renderBedWards(data) {
                     <span class="badge ${getBedStatusBadgeClass(bed.bed_status)}">${bed.bed_status}</span>
                 </div>
                 <div class="bed-charge">₹${bed.daily_charge}/day</div>
-                ${bed.patient_name ? `<div class="patient-name">${bed.patient_name} (Visit ${bed.visit_id})</div>` : ''}
+                ${bed.patient_name ? `<div class="patient-name">${escapeHtml(bed.patient_name)} (Visit ${bed.visit_id})</div>` : ''}
                 ${bed.bed_status === 'Cleaning' ? `
                     <button class="btn btn-sm btn-success mt-2 mark-free" data-bed-id="${bed.bed_id}">
                         <i class="bi bi-check"></i> Mark Free
@@ -146,19 +146,19 @@ function setupForms() {
     // Add Bed Form
     const addBedForm = document.getElementById('addBedForm');
     if (addBedForm) {
-        addBedForm.addEventListener('submit', addBed);
+        addBedForm.addEventListener('submit', preventDoubleSubmit(addBedForm, addBed));
     }
 
     // Add Bed Admin Form (from admin page)
     const addBedAdminForm = document.getElementById('addBedAdminForm');
     if (addBedAdminForm) {
-        addBedAdminForm.addEventListener('submit', addBed);
+        addBedAdminForm.addEventListener('submit', preventDoubleSubmit(addBedAdminForm, addBed));
     }
 
     // Allot Bed Form
     const allotBedForm = document.getElementById('allotBedForm');
     if (allotBedForm) {
-        allotBedForm.addEventListener('submit', allotBed);
+        allotBedForm.addEventListener('submit', preventDoubleSubmit(allotBedForm, allotBed));
     }
 
     // Discharge Confirm
@@ -170,7 +170,7 @@ function setupForms() {
     // Set Bed Status Form
     const setBedStatusForm = document.getElementById('setBedStatusForm');
     if (setBedStatusForm) {
-        setBedStatusForm.addEventListener('submit', submitSetBedStatus);
+        setBedStatusForm.addEventListener('submit', preventDoubleSubmit(setBedStatusForm, submitSetBedStatus));
     }
 
     // Refresh buttons
@@ -183,9 +183,9 @@ function setupForms() {
     }
 }
 
-async function addBed(e) {
-    e.preventDefault();
-    const form = e.target;
+async function addBed() {
+    const form = document.querySelector('#addBedForm, #addBedAdminForm');
+    if (!form) return;
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
     data.daily_charge = parseFloat(data.daily_charge);
@@ -212,9 +212,9 @@ function openAllotBedModal(visitId) {
     modal.show();
 }
 
-async function allotBed(e) {
-    e.preventDefault();
-    const form = e.target;
+async function allotBed() {
+    const form = document.getElementById('allotBedForm');
+    if (!form) return;
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
     const visitId = data.visit_id;
@@ -281,9 +281,9 @@ async function setBedStatus(bedId, status) {
     });
 }
 
-async function submitSetBedStatus(e) {
-    e.preventDefault();
-    const form = e.target;
+async function submitSetBedStatus() {
+    const form = document.getElementById('setBedStatusForm');
+    if (!form) return;
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
     const bedId = data.bed_id;
