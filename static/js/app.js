@@ -258,9 +258,18 @@ function initNavigationHighlight() {
  */
 async function loadMeta() {
     try {
+        const authResp = await get('/auth/me');
+        if (authResp.ok && authResp.data && authResp.data.authenticated && authResp.data.user) {
+            const u = authResp.data.user;
+            const sidebarName = document.getElementById('sidebarUserName');
+            const sidebarRole = document.getElementById('sidebarUserRole');
+            if (sidebarName) sidebarName.textContent = u.full_name || u.username;
+            if (sidebarRole) sidebarRole.textContent = u.role;
+            localStorage.setItem('hospital_user', JSON.stringify(u));
+        }
+
         const envelope = await get('/meta');
         if (envelope.ok && envelope.data) {
-            // Update role if provided
             if (envelope.data.role) {
                 switchRole(envelope.data.role, false);
             }
@@ -269,6 +278,7 @@ async function loadMeta() {
         console.warn('Failed to load meta', e);
     }
 }
+
 
 /**
  * Format number with commas

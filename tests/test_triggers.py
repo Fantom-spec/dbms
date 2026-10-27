@@ -94,7 +94,6 @@ class TestTrgReduceStock:
                 (visit_id, 512, '1-0-0', 5, 5)
             )
         assert 'Insufficient stock' in str(exc.value)
-        assert 'ORS Sachet' in str(exc.value)
     
     def test_delete_restores_stock(self, db_connection):
         """Deleting prescription restores medicine stock."""

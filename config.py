@@ -16,6 +16,22 @@ import secrets
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# Load .env file into os.environ if present (without external dependencies)
+_env_file = os.path.join(BASE_DIR, '.env')
+if os.path.exists(_env_file):
+    try:
+        with open(_env_file, 'r', encoding='utf-8') as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if _line and not _line.startswith('#') and '=' in _line:
+                    _k, _v = _line.split('=', 1)
+                    _k, _v = _k.strip(), _v.strip().strip("'\"")
+                    if _k and _k not in os.environ:
+                        os.environ[_k] = _v
+    except Exception:
+        pass
+
+
 # The demonstration database that ships with the project.
 DEFAULT_DB_PATH = os.path.join(BASE_DIR, 'hospital.db')
 
@@ -53,3 +69,28 @@ DEFAULT_ROLE = 'Admin'
 # server never grants).
 CSRF_HEADER = 'X-Requested-With'
 CSRF_VALUE = 'HospitalApp'
+
+# Session and cookie configuration
+SESSION_COOKIE_NAME = os.environ.get('HOSPITAL_SESSION_COOKIE', 'hospital_session')
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = os.environ.get('HOSPITAL_COOKIE_SAMESITE', 'Lax')
+SESSION_COOKIE_SECURE = os.environ.get('HOSPITAL_COOKIE_SECURE', '0') == '1'
+SESSION_LIFETIME_HOURS = int(os.environ.get('HOSPITAL_SESSION_HOURS', '12'))
+
+# Rate limiting settings for authentication
+RATE_LIMIT_MAX_ATTEMPTS = int(os.environ.get('AUTH_MAX_ATTEMPTS', '5'))
+RATE_LIMIT_LOCKOUT_MINUTES = int(os.environ.get('AUTH_LOCKOUT_MINUTES', '15'))
+
+AUTH_REQUIRED = os.getenv('AUTH_REQUIRED', '0') == '1'
+
+# Allowed origins for CORS (main frontend and standalone schema-demo frontend)
+CORS_ALLOWED_ORIGINS = [
+    o.strip() for o in
+    os.environ.get(
+        'CORS_ALLOWED_ORIGINS',
+        'http://localhost:5000,http://127.0.0.1:5000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174'
+    ).split(',')
+    if o.strip()
+]
+
+

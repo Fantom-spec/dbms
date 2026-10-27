@@ -886,7 +886,18 @@ def add_prescription(conn: sqlite3.Connection, visit_id: int, medicine_id: int,
             raise BusinessRuleError(VISIT_CLOSED, 'Cannot prescribe for cancelled visit')
         
         _require_medicine(c, mid)
-        
+
+        # Friendly, specific message. The trg_reduce_stock trigger still enforces this at the
+        # database level, but SQLite's RAISE() only accepts a literal message.
+        med = c.execute(
+            'SELECT medicine_name, stock_quantity FROM medicine WHERE medicine_id = ?', (mid,)
+        ).fetchone()
+        if med and med['stock_quantity'] < qty:
+            raise BusinessRuleError(
+                INSUFFICIENT_STOCK,
+                f"Insufficient stock for {med['medicine_name']}: "
+                f"available {med['stock_quantity']}, requested {qty}")
+
         cur = c.execute('''
             INSERT INTO prescription (visit_id, medicine_id, dosage, duration_days, quantity)
             VALUES (?, ?, ?, ?, ?)

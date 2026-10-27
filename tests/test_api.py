@@ -52,9 +52,7 @@ def test_database_created_when_missing(api):
 GETS = ['/api/meta', '/api/lookups', '/api/dashboard', '/api/patients', '/api/patients/107/history', '/api/doctors',
         '/api/medicines', '/api/medicines/low-stock', '/api/beds', '/api/visits', '/api/visits/407/summary',
         '/api/emergency/queue', '/api/visits/407/prescriptions', '/api/bills', '/api/bills/pending', '/api/reports',
-        '/api/audit', '/api/schema/overview', '/api/schema/tables', '/api/schema/tables/patient',
-        '/api/schema/relationships', '/api/schema/constraints', '/api/schema/indexes', '/api/schema/triggers',
-        '/api/schema/functions', '/api/schema/ddl', '/api/schema/er', '/api/schema/violations',
+        '/api/audit',
         '/api/demo/steps', '/api/demo/state'] + [f'/api/reports/q{i:02d}' for i in range(1, 20)]
 
 
@@ -69,7 +67,7 @@ def test_unknown_endpoint_and_ids_are_enveloped(api):
     s, js = api.get('/api/nope')
     assert s == 404 and js['ok'] is False
     for url, code in [('/api/patients/9999/history', 'PATIENT_NOT_FOUND'), ('/api/visits/9999/summary', 'VISIT_NOT_FOUND'),
-                      ('/api/schema/tables/nope', 'TABLE_NOT_FOUND'), ('/api/reports/q99', 'REPORT_NOT_FOUND')]:
+                      ('/api/reports/q99', 'REPORT_NOT_FOUND')]:
         s, js = api.get(url)
         assert s == 200 and js['error']['code'] == code and js['error']['kind'] == 'not_found', (url, js)
 
@@ -192,33 +190,7 @@ def test_restock_validation(api):
     assert js['error']['code'] == 'MEDICINE_NOT_FOUND'
 
 
-def test_sql_console_is_read_only(api):
-    s, js = api.post('/api/sql', {'sql': 'SELECT COUNT(*) FROM patient'})
-    assert js['ok'] and js['data']['rows'] == [[12]]
-    for bad in ['DELETE FROM patient', 'SELECT 1; DROP TABLE patient', 'PRAGMA writable_schema=1',
-                "WITH x AS (SELECT 1) DELETE FROM patient", 'ATTACH DATABASE "/tmp/x" AS y', '']:
-        s, js = api.post('/api/sql', {'sql': bad})
-        assert not js['ok'], bad
-    assert api.raw().execute('SELECT COUNT(*) FROM patient').fetchone()[0] == 12
 
-
-def test_violations_always_rolled_back(api):
-    before = [api.raw().execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0] for t in ('visit', 'patient', 'bill', 'prescription')]
-    s, js = api.get('/api/schema/violations')
-    for v in js['data']:
-        s, r = api.post(f"/api/schema/violations/{v['id']}/run")
-        assert r['ok'] and r['data']['blocked'] is True, v['id']
-    after = [api.raw().execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0] for t in ('visit', 'patient', 'bill', 'prescription')]
-    assert before == after
-
-
-def test_trigger_demos_rolled_back(api):
-    for name in ['trg_reduce_stock', 'trg_audit_visit', 'trg_audit_bill', 'trg_audit_patient', 'trg_doctor_status', 'trg_protect_audit']:
-        s, r = api.post(f'/api/schema/triggers/{name}/demo')
-        assert r['ok'] and r['data']['effect'], name
-    s, r = api.post('/api/schema/triggers/nope/demo')
-    assert r['error']['code'] == 'TRIGGER_NOT_FOUND'
-    assert api.raw().execute('SELECT COUNT(*) FROM audit_log').fetchone()[0] == 12
 
 
 def test_audit_tamper(api):
@@ -266,7 +238,7 @@ def test_no_exception_text_leaks(api, monkeypatch):
 
 
 PAGES = ['/', '/patients', '/appointments', '/emergency', '/beds', '/pharmacy', '/billing', '/reports', '/audit',
-         '/demo', '/schema', '/admin']
+         '/admin']
 
 
 @pytest.mark.parametrize('url', PAGES)
@@ -278,3 +250,78 @@ def test_pages_render_without_cdn(api, url):
     html = r.get_data(as_text=True)
     assert 'http://' not in html.replace('http://www.w3.org', '') and 'cdn.' not in html
     assert 'Content-Security-Policy' in r.headers
+
+
+# --------------------------------------------------------------------------- role permissions
+
+# (role, method, url, body, allowed). "Allowed" means not blocked by role; the call may still
+# fail a business rule (e.g. bill not found), which is fine - we only assert on FORBIDDEN here.
+PERMISSION_CASES = [
+    ('Receptionist', 'POST', '/api/bills/706/pay', {'payment_mode': 'Cash'}, False),
+    ('Triage Nurse', 'POST', '/api/bills/706/pay', {'payment_mode': 'Cash'}, False),
+    ('Doctor', 'POST', '/api/bills/706/pay', {'payment_mode': 'Cash'}, False),
+    ('Billing', 'POST', '/api/bills/706/pay', {'payment_mode': 'Cash'}, True),
+    ('Admin', 'POST', '/api/bills/706/pay', {'payment_mode': 'Cash'}, True),
+    ('Receptionist', 'POST', '/api/visits/407/bill', {}, False),
+    ('Billing', 'POST', '/api/visits/407/bill', {}, True),
+    ('Receptionist', 'POST', '/api/medicines/501/restock', {'quantity': 5}, False),
+    ('Billing', 'POST', '/api/medicines/501/restock', {'quantity': 5}, False),
+    ('Doctor', 'POST', '/api/medicines/501/restock', {'quantity': 5}, True),
+    ('Receptionist', 'POST', '/api/prescriptions', {'visit_id': 407, 'medicine_id': 501, 'quantity': 1}, False),
+    ('Doctor', 'POST', '/api/prescriptions', {'visit_id': 407, 'medicine_id': 501, 'quantity': 1}, True),
+    ('Receptionist', 'POST', '/api/visits/407/discharge', {}, False),
+    ('Doctor', 'POST', '/api/visits/407/discharge', {}, True),
+    ('Billing', 'POST', '/api/patients', PATIENT, False),
+    ('Doctor', 'POST', '/api/patients', PATIENT, False),
+    ('Receptionist', 'POST', '/api/patients', PATIENT, True),
+    ('Triage Nurse', 'POST', '/api/emergency', {}, True),
+    ('Billing', 'POST', '/api/emergency', {}, False),
+    ('Receptionist', 'DELETE', '/api/patients/101', None, False),
+    ('Receptionist', 'POST', '/api/reset', {'confirm': True}, False),
+    ('Receptionist', 'POST', '/api/audit/tamper-test', {}, False),
+    ('Receptionist', 'POST', '/api/doctors', {}, False),
+    ('Doctor', 'POST', '/api/demo/T1.1/run', {}, False),
+]
+
+
+@pytest.mark.parametrize('case', PERMISSION_CASES)
+def test_role_permissions(api, case):
+    role, method, url, body, allowed = case
+    s, js = api.call(method, url, body, role=role)
+    forbidden = s == 403 and js['error']['code'] == 'FORBIDDEN'
+    assert forbidden is (not allowed), (role, method, url, s, js)
+    if forbidden:
+        assert js['ok'] is False and js['error']['kind'] == 'authorization'
+
+
+def test_forbidden_write_changes_nothing(api):
+    before = api.raw().execute('SELECT payment_status FROM bill WHERE bill_id = 706').fetchone()
+    s, js = api.post('/api/bills/706/pay', {'payment_mode': 'Cash'}, role='Receptionist')
+    assert s == 403
+    assert api.raw().execute('SELECT payment_status FROM bill WHERE bill_id = 706').fetchone() == before
+
+
+def test_reads_are_open_to_every_role(api):
+    for role in ('Receptionist', 'Triage Nurse', 'Doctor', 'Billing'):
+        for url in ('/api/patients', '/api/bills', '/api/medicines', '/api/beds'):
+            s, js = api.get(url, role=role)
+            assert s == 200 and js['ok'], (role, url)
+
+
+def test_logged_in_user_cannot_escalate_with_role_header(api):
+    """A real Receptionist session must stay a Receptionist even if it sends X-Role: Admin."""
+    import app as a
+    import auth
+    from db.connection import get_connection
+    application = a.create_app({'TESTING': True, 'DB_PATH': str(api.path), 'AUTH_REQUIRED': True})
+    conn = get_connection(str(api.path))
+    auth.init_auth_tables(conn)
+    auth.create_user(conn, 'frontdesk1', 'Str0ng!Passw0rd#9', role='Receptionist', full_name='Front Desk')
+    conn.close()
+    c = application.test_client()
+    h = {'X-Requested-With': 'HospitalApp'}
+    r = c.post('/api/auth/login', json={'username': 'frontdesk1', 'password': 'Str0ng!Passw0rd#9'}, headers=h)
+    assert r.get_json()['ok'], r.get_json()
+    r = c.post('/api/bills/706/pay', json={'payment_mode': 'Cash'}, headers={**h, 'X-Role': 'Admin'})
+    assert r.status_code == 403 and r.get_json()['error']['code'] == 'FORBIDDEN'
+    assert c.get('/api/meta', headers={**h, 'X-Role': 'Admin'}).get_json()['data']['role'] == 'Receptionist'

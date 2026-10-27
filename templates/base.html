@@ -14,108 +14,151 @@
         <!-- Sidebar Navigation -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <h4 class="mb-0"><i class="bi bi-hospital"></i> Smart Hospital</h4>
-                <small class="text-muted">Management System</small>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="brand-icon">
+                        <i class="bi bi-hospital"></i>
+                    </div>
+                    <div>
+                        <h4 class="mb-0 brand-title">Smart Hospital</h4>
+                        <small class="brand-subtitle">Health Operations Suite</small>
+                    </div>
+                </div>
             </div>
             <nav class="sidebar-nav">
+                <div class="nav-category">CLINICAL</div>
                 <ul class="nav flex-column">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('views.dashboard') }}" data-page="dashboard">
-                            <i class="bi bi-speedometer2"></i> Dashboard
+                            <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('views.patients') }}" data-page="patients">
-                            <i class="bi bi-people"></i> Patients
+                            <i class="bi bi-people"></i> <span>Patients</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('views.appointments') }}" data-page="appointments">
-                            <i class="bi bi-calendar-check"></i> Appointments
+                            <i class="bi bi-calendar-check"></i> <span>Appointments</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('views.emergency') }}" data-page="emergency">
-                            <i class="bi bi-exclamation-triangle"></i> Emergency
+                            <i class="bi bi-exclamation-triangle"></i> <span>Emergency</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('views.beds') }}" data-page="beds">
-                            <i class="bi bi-bed"></i> Beds
+                            <i class="bi bi-bed"></i> <span>Beds Management</span>
                         </a>
                     </li>
+                </ul>
+
+                <div class="nav-category mt-3">OPERATIONS</div>
+                <ul class="nav flex-column">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('views.pharmacy') }}" data-page="pharmacy">
-                            <i class="bi bi-capsule"></i> Pharmacy
+                            <i class="bi bi-capsule"></i> <span>Pharmacy</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('views.billing') }}" data-page="billing">
-                            <i class="bi bi-cash-stack"></i> Billing
+                            <i class="bi bi-cash-stack"></i> <span>Billing</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('views.reports') }}" data-page="reports">
-                            <i class="bi bi-bar-chart"></i> Reports
+                            <i class="bi bi-bar-chart"></i> <span>Reports (Review II)</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('views.audit') }}" data-page="audit">
-                            <i class="bi bi-journal-text"></i> Audit Log
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('views.demo') }}" data-page="demo">
-                            <i class="bi bi-play-circle"></i> Guided Demo
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('views.schema') }}" data-page="schema">
-                            <i class="bi bi-diagram-3"></i> Schema Explorer
+                            <i class="bi bi-journal-text"></i> <span>Audit Log</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('views.admin') }}" data-page="admin">
-                            <i class="bi bi-gear"></i> Admin
+                            <i class="bi bi-gear"></i> <span>System Admin</span>
                         </a>
                     </li>
                 </ul>
             </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-chip d-flex align-items-center gap-2">
+                    <div class="user-avatar">
+                        <i class="bi bi-person-circle"></i>
+                    </div>
+                    <div class="user-details text-truncate">
+                        <div class="user-name text-truncate" id="sidebarUserName">{{ current_user.username if current_user else 'Authenticated User' }}</div>
+                        <div class="user-role-badge text-truncate"><span class="badge bg-secondary-subtle text-secondary" id="sidebarUserRole">{{ current_user.role if current_user else 'Admin' }}</span></div>
+                    </div>
+                    <a href="{{ url_for('views.logout') }}" class="btn btn-sm btn-outline-danger ms-auto" title="Sign out" aria-label="Sign out">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
         </aside>
 
         <!-- Main Content -->
         <div class="main-wrapper">
             <!-- Top Bar -->
             <header class="topbar">
-                <button class="btn btn-sm btn-outline-secondary sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
-                    <i class="bi bi-list"></i>
-                </button>
-                <div class="topbar-center">
+                <div class="d-flex align-items-center gap-3">
+                    <button class="btn btn-sm btn-outline-secondary sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                        <i class="bi bi-list"></i>
+                    </button>
                     <h5 class="mb-0 page-title">{% block page_title %}Dashboard{% endblock %}</h5>
                 </div>
-                <div class="topbar-right">
-                    <!-- Role Switcher -->
+
+                <div class="topbar-right d-flex align-items-center gap-2">
+                    <!-- Role Simulation Switcher -->
                     <div class="dropdown">
-                        <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="roleDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <button class="btn btn-sm btn-outline-primary dropdown-toggle d-flex align-items-center gap-1" type="button" id="roleDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Simulate database user role">
                             <i class="bi bi-person-badge"></i> <span id="currentRole">Admin</span>
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="roleDropdown">
-                            <li><a class="dropdown-item" href="#" data-role="Admin">Admin</a></li>
-                            <li><a class="dropdown-item" href="#" data-role="Receptionist">Receptionist</a></li>
-                            <li><a class="dropdown-item" href="#" data-role="Triage Nurse">Triage Nurse</a></li>
-                            <li><a class="dropdown-item" href="#" data-role="Doctor">Doctor</a></li>
-                            <li><a class="dropdown-item" href="#" data-role="Billing">Billing</a></li>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="roleDropdown">
+                            <li><h6 class="dropdown-header small">Simulate Active Role</h6></li>
+                            <li><a class="dropdown-item" href="#" data-role="Admin"><i class="bi bi-shield-check text-primary me-2"></i>Admin</a></li>
+                            <li><a class="dropdown-item" href="#" data-role="Receptionist"><i class="bi bi-person text-secondary me-2"></i>Receptionist</a></li>
+                            <li><a class="dropdown-item" href="#" data-role="Triage Nurse"><i class="bi bi-heart-pulse text-danger me-2"></i>Triage Nurse</a></li>
+                            <li><a class="dropdown-item" href="#" data-role="Doctor"><i class="bi bi-activity text-success me-2"></i>Doctor</a></li>
+                            <li><a class="dropdown-item" href="#" data-role="Billing"><i class="bi bi-cash text-warning me-2"></i>Billing</a></li>
                         </ul>
                     </div>
+
                     <!-- Inspector Switch -->
-                    <div class="form-check form-switch ms-2">
+                    <div class="form-check form-switch ms-1 me-1 d-none d-sm-block">
                         <input class="form-check-input" type="checkbox" id="inspectorSwitch" role="switch">
-                        <label class="form-check-label small" for="inspectorSwitch">Always Show Inspector</label>
+                        <label class="form-check-label small" for="inspectorSwitch">Inspector</label>
                     </div>
+
                     <!-- Reset Button -->
-                    <button class="btn btn-sm btn-outline-danger ms-2" id="resetBtn" title="Reset demo database">
-                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    <button class="btn btn-sm btn-outline-danger" id="resetBtn" title="Reset demo database to seed state">
+                        <i class="bi bi-arrow-clockwise"></i> <span class="d-none d-md-inline">Reset</span>
                     </button>
+
+                    <!-- User Account Dropdown -->
+                    <div class="dropdown ms-1">
+                        <button class="btn btn-sm btn-secondary dropdown-toggle d-flex align-items-center gap-1" type="button" id="userMenuDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-person-circle"></i>
+                            <span class="d-none d-lg-inline">{{ current_user.username if current_user else 'Account' }}</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userMenuDropdown">
+                            <li class="px-3 py-2 border-bottom">
+                                <div class="fw-semibold text-truncate">{{ current_user.full_name if current_user and current_user.full_name else (current_user.username if current_user else 'Administrator') }}</div>
+                                <div class="small text-muted">{{ current_user.role if current_user else 'System Admin' }}</div>
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('views.admin') }}"><i class="bi bi-gear me-2"></i>System Administration</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item text-danger" href="{{ url_for('views.logout') }}">
+                                    <i class="bi bi-box-arrow-right me-2"></i>Sign Out
+                                </a>
+                            </li>
+
+                        </ul>
+                    </div>
                 </div>
             </header>
 
@@ -136,6 +179,25 @@
                     </button>
                 </div>
                 <div class="inspector-body" id="inspectorBody"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Confirmation Modal for Destructive Actions -->
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmModalLabel"><i class="bi bi-exclamation-triangle text-danger me-2"></i>Confirm Action</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="confirmModalBody">
+                    Are you sure you want to proceed with this action?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmModalBtn">Confirm</button>
+                </div>
             </div>
         </div>
     </div>

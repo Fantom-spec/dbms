@@ -8,8 +8,7 @@
 CREATE TRIGGER trg_reduce_stock__insert
 BEFORE INSERT ON prescription
 BEGIN
-    SELECT RAISE(ABORT, 'Insufficient stock for ' || m.medicine_name ||
-           ': available ' || m.stock_quantity || ', requested ' || NEW.quantity)
+    SELECT RAISE(ABORT, 'Insufficient stock')
     FROM medicine m
     WHERE m.medicine_id = NEW.medicine_id
       AND m.stock_quantity < NEW.quantity;

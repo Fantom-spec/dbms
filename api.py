@@ -18,11 +18,13 @@ from db.connection import get_connection
 from demo import get_demo_state, get_demo_steps, reset_demo, run_demo_step
 from errors import BusinessRuleError, error_payload, map_sqlite_error
 from inspector import Capture, build_inspector
-from introspect import (
-    execute_sql, get_constraints, get_ddl, get_er, get_functions, get_indexes,
-    get_relationships, get_schema_overview, get_table, get_tables, get_triggers,
-    get_violations, run_trigger_demo, run_violation,
+
+from auth import (
+    authenticate_user, create_session, create_user, get_user_from_session,
+    init_auth_tables, invalidate_session, list_users, validate_password_strength,
+    validate_username
 )
+
 from queries import get_report, get_reports_catalogue
 from validation import clamp_limit
 
@@ -30,6 +32,38 @@ api_bp = Blueprint('api', __name__)
 
 ROLES = list(config.ROLE_USERNAMES)
 SAFE_METHODS = ('GET', 'HEAD', 'OPTIONS')
+
+
+# --------------------------------------------------------------------------- role permissions
+# Which roles may call each state-changing endpoint (keyed by view-function name).
+# Admin may do everything. Read-only (GET) endpoints are open to every role.
+# Mirrors the navigation shown to each role in static/js/app.js.
+FRONT_DESK = ('Receptionist', 'Triage Nurse')
+CLINICAL = ('Doctor',)
+WRITE_PERMISSIONS = {
+    # registration and scheduling
+    'create_patient': FRONT_DESK, 'update_patient': FRONT_DESK,
+    'book': FRONT_DESK, 'cancel': FRONT_DESK, 'emergency': FRONT_DESK,
+    # beds
+    'bed_status': FRONT_DESK + CLINICAL, 'allot_bed': FRONT_DESK + CLINICAL,
+    # treatment and pharmacy
+    'start_treatment': CLINICAL, 'discharge': CLINICAL,
+    'add_prescription': CLINICAL, 'delete_prescription': CLINICAL,
+    'restock': CLINICAL,
+    # billing
+    'generate_bill': ('Billing',), 'pay_bill': ('Billing',),
+    # administration (Admin only)
+    'delete_patient': (), 'create_doctor': (), 'update_doctor': (), 'create_medicine': (),
+    'create_bed': (), 'reset': (), 'tamper_test': (), 'demo_run': (),
+}
+
+
+def _role_allowed(endpoint, role):
+    """True if ``role`` may call a write endpoint. Unlisted endpoints are not role-restricted."""
+    if role == 'Admin':
+        return True
+    allowed = WRITE_PERMISSIONS.get(endpoint)
+    return allowed is None or role in allowed
 
 
 class BadRequest(Exception):
@@ -65,21 +99,68 @@ def body():
 
 # --------------------------------------------------------------------------- request lifecycle
 
+def _extract_token():
+    token = request.cookies.get(config.SESSION_COOKIE_NAME)
+    if token:
+        return token
+    hdr = request.headers.get('Authorization')
+    if hdr and hdr.startswith('Bearer '):
+        return hdr[7:].strip()
+    return request.headers.get('X-Session-Token')
+
+
 @api_bp.before_request
 def open_connection():
+    if request.method == 'OPTIONS':
+        return Response('', status=204)
+
     if request.method not in SAFE_METHODS:
         if request.headers.get(config.CSRF_HEADER) != config.CSRF_VALUE:
             return fail('Missing X-Requested-With header (CSRF protection)', 'validation',
                         'CSRF_REQUIRED', status=403)
-    role = request.headers.get('X-Role') or config.DEFAULT_ROLE
-    if role not in config.ROLE_USERNAMES:
-        return fail(f'Unknown role: {role[:40]!r}', 'validation', 'INVALID_ROLE',
-                    f'Role must be one of: {", ".join(ROLES)}', status=400)
+
     g.db = get_connection(current_app.config['DB_PATH'])
-    g.role = role
-    g.username = config.ROLE_USERNAMES[role]
+    init_auth_tables(g.db)
+
+    # Session / user lookup
+    token = _extract_token()
+    g.user = get_user_from_session(g.db, token) if token else None
+
+    # Check route authorization
+    is_public = request.path in ('/api/auth/login', '/api/auth/logout', '/api/auth/me')
+    auth_enforced = current_app.config.get('AUTH_REQUIRED', True)
+
+    if not is_public and auth_enforced and not g.user:
+        return fail('Authentication required', 'authentication', 'UNAUTHORIZED',
+                    'Please log in with valid credentials to access this resource', status=401)
+
+    # Resolve active role for application session and audit triggers
+    requested_role = request.headers.get('X-Role')
+    if g.user:
+        # Admins can simulate other roles during demonstration; other roles use their assigned role
+        if g.user.get('role') == 'Admin' and requested_role in config.ROLE_USERNAMES:
+            g.role = requested_role
+        else:
+            g.role = g.user.get('role', config.DEFAULT_ROLE)
+        g.username = config.ROLE_USERNAMES.get(g.role, g.user.get('username'))
+    else:
+        role = requested_role or config.DEFAULT_ROLE
+        if role not in config.ROLE_USERNAMES:
+            return fail(f'Unknown role: {role[:40]!r}', 'validation', 'INVALID_ROLE',
+                        f'Role must be one of: {", ".join(ROLES)}', status=400)
+        g.role = role
+        g.username = config.ROLE_USERNAMES[role]
+
+    # Role-based authorization for state-changing requests
+    if request.method not in SAFE_METHODS:
+        endpoint = (request.endpoint or '').rsplit('.', 1)[-1]
+        if not _role_allowed(endpoint, g.role):
+            return fail(f'The {g.role} role is not permitted to perform this action', 'authorization',
+                        'FORBIDDEN', f'Your role ({g.role}) does not have permission for this operation', status=403)
+
     g.db.execute('INSERT OR IGNORE INTO app_session (id, username) VALUES (1, ?)', (g.username,))
     g.db.execute('UPDATE app_session SET username = ? WHERE id = 1', (g.username,))
+
 
 
 @api_bp.teardown_request
@@ -168,9 +249,92 @@ def _float_arg(name, default=None):
         raise BadRequest(f'Query parameter {name} must be a number')
 
 
+# --------------------------------------------------------------------------- authentication
+
+@api_bp.route('/auth/login', methods=['POST'])
+def auth_login():
+    data = body()
+    username = data.get('username', '').strip() if isinstance(data.get('username'), str) else ''
+    password = data.get('password', '') if isinstance(data.get('password'), str) else ''
+    if not username or not password:
+        return fail('Username and password are required', 'validation', 'MISSING_CREDENTIALS', status=400)
+
+    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or '127.0.0.1').split(',')[0].strip()
+    user, err = authenticate_user(g.db, username, password, client_ip=client_ip)
+    if err:
+        return fail(err, 'authentication', 'INVALID_CREDENTIALS', status=401)
+
+    token, expires = create_session(g.db, user)
+
+    g.user = user
+    g.role = user['role']
+    g.username = config.ROLE_USERNAMES.get(g.role, user['username'])
+    g.db.execute('UPDATE app_session SET username = ? WHERE id = 1', (g.username,))
+
+    resp = envelope(True, f"Welcome back, {user.get('full_name') or user['username']}!", {
+        'token': token,
+        'expires_at': expires.strftime('%Y-%m-%d %H:%M:%S'),
+        'user': user
+    })
+    resp.set_cookie(
+        config.SESSION_COOKIE_NAME,
+        token,
+        httponly=config.SESSION_COOKIE_HTTPONLY,
+        samesite=config.SESSION_COOKIE_SAMESITE,
+        secure=config.SESSION_COOKIE_SECURE,
+        max_age=config.SESSION_LIFETIME_HOURS * 3600,
+        path='/'
+    )
+    return resp
+
+
+@api_bp.route('/auth/logout', methods=['POST'])
+def auth_logout():
+    token = _extract_token()
+    if token:
+        invalidate_session(g.db, token)
+    g.user = None
+    resp = envelope(True, 'Logged out successfully', None)
+    resp.delete_cookie(config.SESSION_COOKIE_NAME, path='/')
+    return resp
+
+
+@api_bp.route('/auth/me', methods=['GET'])
+def auth_me():
+    if getattr(g, 'user', None):
+        return envelope(True, 'Session active', {'authenticated': True, 'user': g.user})
+    return envelope(True, 'Not authenticated', {'authenticated': False, 'user': None})
+
+
+@api_bp.route('/auth/users', methods=['GET'])
+def get_users():
+    if not g.user or g.user.get('role') != 'Admin':
+        return fail('Administrator privileges required', 'authorization', 'FORBIDDEN', status=403)
+    return read(lambda: list_users(g.db), 'User accounts retrieved')
+
+
+@api_bp.route('/auth/users', methods=['POST'])
+def add_user():
+    if not g.user or g.user.get('role') != 'Admin':
+        return fail('Administrator privileges required', 'authorization', 'FORBIDDEN', status=403)
+    data = body()
+    try:
+        new_user = create_user(
+            g.db,
+            username=data.get('username'),
+            password=data.get('password'),
+            role=data.get('role', 'Receptionist'),
+            full_name=data.get('full_name')
+        )
+        return envelope(True, f"User {new_user['username']} created successfully", new_user)
+    except ValueError as e:
+        return fail(str(e), 'validation', 'VALIDATION_ERROR', status=400)
+
+
 # --------------------------------------------------------------------------- session / meta
 
 @api_bp.route('/meta', methods=['GET'])
+
 def meta():
     def _meta():
         counts = {t: g.db.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0]
@@ -516,57 +680,8 @@ def tamper_test():
                component('trg_protect_audit', 'trigger', 'TRIGGER trg_protect_audit'))
 
 
-# --------------------------------------------------------------------------- schema explorer
+# --------------------------------------------------------------------------- transaction demonstration logic
 
-def _schema(name, fn, message):
-    @api_bp.route(f'/schema/{name}', methods=['GET'], endpoint=f'schema_{name}')
-    def _view():
-        return read(lambda: fn(g.db), message)
-
-
-_schema('overview', get_schema_overview, 'Schema overview retrieved')
-_schema('tables', get_tables, 'Tables retrieved')
-_schema('relationships', get_relationships, 'Relationships retrieved')
-_schema('constraints', get_constraints, 'Constraints retrieved')
-_schema('indexes', get_indexes, 'Indexes retrieved')
-_schema('triggers', get_triggers, 'Triggers retrieved')
-_schema('functions', get_functions, 'Functions retrieved')
-_schema('er', get_er, 'ER diagram retrieved')
-_schema('violations', get_violations, 'Violation tests retrieved')
-
-
-@api_bp.route('/schema/tables/<table_name>', methods=['GET'])
-def schema_table(table_name):
-    preview = max(1, min(_int_arg('preview', 10), 100))
-    return read(lambda: get_table(g.db, table_name, preview), 'Table retrieved')
-
-
-@api_bp.route('/schema/ddl', methods=['GET'])
-def schema_ddl():
-    if request.args.get('download') in ('1', 'true'):
-        return Response(get_ddl(g.db)['ddl'], mimetype='text/plain',
-                        headers={'Content-Disposition': 'attachment; filename=schema.sql'})
-    return read(lambda: get_ddl(g.db), 'DDL retrieved')
-
-
-@api_bp.route('/schema/violations/<violation_id>/run', methods=['POST'])
-def violation_run(violation_id):
-    return run(f'violation_{violation_id}', lambda: run_violation(g.db, violation_id),
-               lambda r: 'Blocked by the database' if r['blocked'] else 'NOT blocked (rolled back by the test)',
-               component(f'violation_{violation_id}', 'constraint', 'constraint violation test'))
-
-
-@api_bp.route('/schema/triggers/<logical_name>/demo', methods=['POST'])
-def trigger_demo(logical_name):
-    return run(f'trigger_demo_{logical_name}', lambda: run_trigger_demo(g.db, logical_name),
-               'Trigger demo executed (rolled back)',
-               component(logical_name, 'trigger', f'TRIGGER {logical_name}'))
-
-
-@api_bp.route('/sql', methods=['POST'])
-def sql_console():
-    data = body()
-    return read(lambda: execute_sql(current_app.config['DB_PATH'], data.get('sql')), 'SQL query executed')
 
 
 # --------------------------------------------------------------------------- guided demo

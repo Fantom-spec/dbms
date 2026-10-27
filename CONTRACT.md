@@ -83,6 +83,8 @@ Role to username (written to `app_session` at the start of every request): Admin
 
 #### Reports, Audit, Schema
 
+> **Status:** the `/api/schema/*` and `/api/sql` endpoints listed below were removed from the real API. They are kept here for reference and are still served from fixtures in stub mode only.
+
 | Method | Path | Body / query | `data` |
 |---|---|---|---|
 | GET | `/api/reports` | | `[{id, label, title, concept, chart}]` |

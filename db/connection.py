@@ -10,9 +10,20 @@ concurrent requests handled by different threads can never see each other's SQL
 trace or row changes.
 """
 import sqlite3
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union
+
+# Optional PostgreSQL support via psycopg (v3)
+try:
+    import psycopg
+    from psycopg import Connection as PgConnection
+    from psycopg.rows import dict_row
+except Exception:
+    psycopg = None
+    PgConnection = None
+    dict_row = None
 
 PathLike = Union[str, Path]
 
@@ -37,17 +48,23 @@ def parse_timestamp(value: Optional[str]) -> Optional[datetime]:
     return None
 
 
-def get_connection(db_path: PathLike, *, read_only: bool = False) -> HospitalConnection:
-    """
-    Open a configured connection.
+def get_connection(db_path: PathLike, *, read_only: bool = False) -> Union[HospitalConnection, PgConnection]:
+    """Create a database connection.
 
-    * ``isolation_level=None`` -> transactions are controlled explicitly (BEGIN/COMMIT).
-    * ``row_factory=sqlite3.Row`` -> rows can be read by column name.
-    * ``PRAGMA foreign_keys=ON`` (must be set per connection, SQLite default is OFF).
-    * ``PRAGMA busy_timeout=5000`` -> wait up to 5 s for a competing writer.
-    * UDFs fn_days_stayed / fn_medicine_cost / fn_triage_label are registered.
-    * ``read_only=True`` opens the file with ``mode=ro`` (writes are impossible).
+    If Supabase/PostgreSQL environment variables are present, a PostgreSQL
+    connection (via psycopg) is returned. Otherwise the original SQLite
+    connection is created.
     """
+    # Detect Supabase connection parameters
+    pg_url = os.getenv('DATABASE_URL') or os.getenv('SUPABASE_DB_URL')
+    if pg_url and psycopg:
+        # PostgreSQL path – ignore read_only (psycopg default is read/write)
+        conn = psycopg.connect(pg_url, row_factory=dict_row, isolation_level="read committed")
+        # Ensure UTC timestamps for consistency
+        conn.execute('SET TIME ZONE UTC')
+        return conn
+
+    # Fallback to SQLite (existing behavior)
     if read_only:
         uri = Path(db_path).resolve().as_uri() + '?mode=ro'
         conn = sqlite3.connect(uri, uri=True, isolation_level=None,
@@ -62,16 +79,18 @@ def get_connection(db_path: PathLike, *, read_only: bool = False) -> HospitalCon
     return conn
 
 
-def register_udfs(conn: sqlite3.Connection) -> None:
+def register_udfs(conn) -> None:
+    """Register user‑defined functions for SQLite.
+    For PostgreSQL the equivalents are defined in ``db/schema_pg.sql`` and
+    therefore no registration is needed. This function simply returns when a
+    PostgreSQL connection is supplied.
     """
-    Register the SQL functions (mirroring the Oracle PL/SQL functions of Review II):
+    # If this is a psycopg connection, skip registration – functions are already
+    # present in the database.
+    if psycopg and PgConnection is not None and isinstance(conn, PgConnection):
+        return
 
-    * fn_days_stayed(visit_id)  - 0 if never admitted, else whole days between admit and
-                                  discharge (or now), minimum 1
-    * fn_medicine_cost(visit_id) - SUM(quantity * price_per_unit) of the visit's prescriptions
-    * fn_triage_label(level)    - 1 Critical, 2 Very urgent, 3 Urgent, 4 Minor, else Not triaged
-    """
-
+    # SQLite path – unchanged implementation
     def fn_days_stayed(visit_id) -> int:
         row = conn.execute(
             'SELECT admit_time, discharge_time FROM visit WHERE visit_id = ?', (visit_id,)
@@ -80,9 +99,9 @@ def register_udfs(conn: sqlite3.Connection) -> None:
             return 0
         admit = parse_timestamp(row[0])
         if admit is None:
-            return 0                      # never admitted
+            return 0
         end = parse_timestamp(row[1]) or datetime.now()
-        return max((end.date() - admit.date()).days, 1)   # at least one day is charged
+        return max((end.date() - admit.date()).days, 1)
 
     def fn_medicine_cost(visit_id) -> float:
         row = conn.execute(

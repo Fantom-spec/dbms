@@ -35,6 +35,7 @@ def create_app(test_config=None):
         DB_PATH=default_config.DB_PATH,
         FLASK_API_MODE=default_config.FLASK_API_MODE,
         TRUSTED_HOSTS=default_config.TRUSTED_HOSTS,
+        AUTH_REQUIRED=default_config.AUTH_REQUIRED,
         MAX_CONTENT_LENGTH=256 * 1024,
         JSON_SORT_KEYS=False,
     )
@@ -50,6 +51,19 @@ def create_app(test_config=None):
         if not db_file.exists():
             from db.init_db import init_database
             init_database(db_file)
+        from auth import init_auth_tables, create_user
+        from db.connection import get_connection
+        conn = get_connection(db_file)
+        try:
+            init_auth_tables(conn)
+            admin_user = os.environ.get('HOSPITAL_ADMIN_USER') or os.environ.get('ADMIN_USERNAME')
+            admin_pass = os.environ.get('HOSPITAL_ADMIN_PASSWORD') or os.environ.get('ADMIN_PASSWORD')
+            if admin_user and admin_pass:
+                exists = conn.execute("SELECT 1 FROM user_account WHERE username = ?", (admin_user,)).fetchone()
+                if not exists:
+                    create_user(conn, admin_user, admin_pass, role='Admin', full_name='System Administrator')
+        finally:
+            conn.close()
 
     # ---- API blueprint ----
     if app.config['FLASK_API_MODE'] == 'stub':
@@ -62,7 +76,23 @@ def create_app(test_config=None):
     from views import views_bp
     app.register_blueprint(views_bp)
 
-    # ---- security headers ----
+    # ---- CORS preflight ----
+    @app.before_request
+    def handle_cors_preflight():
+        if request.method == 'OPTIONS':
+            origin = request.headers.get('Origin')
+            resp = app.make_default_options_response()
+            if origin and origin in default_config.CORS_ALLOWED_ORIGINS:
+                resp.headers['Access-Control-Allow-Origin'] = origin
+                resp.headers['Access-Control-Allow-Credentials'] = 'true'
+                resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+                resp.headers['Access-Control-Allow-Headers'] = (
+                    'Content-Type, X-Role, X-Requested-With, Authorization, X-Session-Token'
+                )
+                resp.headers['Access-Control-Max-Age'] = '86400'
+            return resp
+
+    # ---- security and CORS headers ----
     @app.after_request
     def security_headers(resp):
         resp.headers.setdefault('Content-Security-Policy', _CSP)
@@ -71,7 +101,17 @@ def create_app(test_config=None):
         resp.headers.setdefault('Referrer-Policy', 'no-referrer')
         if request.path.startswith('/api/'):
             resp.headers['Cache-Control'] = 'no-store'
+
+        origin = request.headers.get('Origin')
+        if origin and origin in default_config.CORS_ALLOWED_ORIGINS:
+            resp.headers['Access-Control-Allow-Origin'] = origin
+            resp.headers['Access-Control-Allow-Credentials'] = 'true'
+            resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            resp.headers['Access-Control-Allow-Headers'] = (
+                'Content-Type, X-Role, X-Requested-With, Authorization, X-Session-Token'
+            )
         return resp
+
 
     # ---- errors: /api/* always answers with the JSON envelope ----
     @app.errorhandler(404)

@@ -30,8 +30,6 @@ PAGES = [
     ("Billing", "/billing"),
     ("Reports", "/reports"),
     ("Audit Log", "/audit"),
-    ("Guided Demo", "/demo"),
-    ("Schema Explorer", "/schema"),
     ("Admin", "/admin"),
 ]
 
@@ -103,7 +101,6 @@ async def test_api_endpoints(page):
         "/api/medicines",
         "/api/visits",
         "/api/reports",
-        "/api/schema/overview",
     ]
     
     for endpoint in endpoints:

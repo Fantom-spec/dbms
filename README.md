@@ -2,13 +2,17 @@
 
 A Flask + SQLite hospital management system for BCSE302L Database Systems course project (Review III).
 
+> **Auth:** set `AUTH_REQUIRED=1` (see `.env.example`) to require login for pages and the API. The default is off, which is what the test suite expects, so enable it for anything beyond local demos. Create the first user with `python bootstrap_admin.py`.
+>
+> **Existing `hospital.db`:** after pulling the trigger fix in `db/triggers.sql`, rebuild with `python -m db.init_db --force` (a timestamped backup is kept). Old copies embed a trigger that older SQLite versions (< 3.46) cannot open.
+
 ## Features
 
-- **12 Web Pages**: Dashboard, Patients, Appointments, Emergency, Beds, Pharmacy, Billing, Reports, Audit Log, Guided Demo, Schema Explorer, Admin
+- **10 Web Pages**: Dashboard, Patients, Appointments, Emergency, Beds, Pharmacy, Billing, Reports, Audit Log, Admin (plus Login)
 - **Full API Integration**: All pages connect to `/api/*` endpoints with standard envelope format
 - **Transaction Inspector**: Shows SQL executed, triggers fired (inferred from row changes), before/after row changes, viva answers for every write operation
-- **Guided Demo**: 6 scripted transactions (T1–T6) demonstrating complete hospital workflow
-- **Schema Explorer**: 7 tabs (ER Diagram, Tables, Relationships, Constraints/Indexes, Triggers/Functions, Raw DDL, SQL Console)
+- **Guided Demo (API only)**: 6 scripted transactions (T1–T6) are still available at `/api/demo/*`; the demo web page was removed
+- **Schema Explorer**: removed from the web UI and the real API (`/api/schema/*` and `/api/sql` no longer exist; fixtures for them remain only for stub mode)
 - **Reports**: 19 Review II queries with SQL display, results tables, and Chart.js visualizations
 - **Role-based Navigation**: Admin, Receptionist, Triage Nurse, Doctor, Billing
 - **Offline-Ready**: All vendor libraries (Bootstrap, Chart.js, Mermaid) committed to `static/vendor/`
@@ -77,7 +81,7 @@ hospital_app/
 │   ├── connection.py      # PRAGMAs, UDF registration
 │   └── init_db.py         # Database initialization
 ├── fixtures/              # JSON fixtures for stub mode
-├── tests/                 # pytest test suite (189 tests)
+├── tests/                 # pytest test suite
 ├── templates/             # Jinja2 templates (base.html + 12 pages)
 ├── static/
 │   ├── css/app.css        # Custom styles
@@ -110,7 +114,7 @@ hospital_app/
 | Billing | `POST /api/visits/<id>/bill`, `GET /api/bills`, `GET /api/bills/pending`, `POST /api/bills/<id>/pay` |
 | Reports | `GET /api/reports`, `GET /api/reports/<id>` |
 | Audit | `GET /api/audit`, `POST /api/audit/tamper-test` |
-| Schema | `GET /api/schema/*`, `POST /api/schema/violations/<id>/run`, `POST /api/schema/triggers/<name>/demo`, `POST /api/sql` |
+| Schema | Removed (stub mode only) |
 | Demo | `GET /api/demo/steps`, `GET /api/demo/state`, `POST /api/demo/<step_id>/run` |
 
 ## API Response Envelope

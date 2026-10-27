@@ -4,7 +4,7 @@
  * Never throws on ok:false - returns the envelope for caller to handle.
  */
 
-const API_BASE = '/api';
+const API_BASE = window.__API_BASE__ || '/api';
 
 /**
  * Core API call function
@@ -14,14 +14,22 @@ const API_BASE = '/api';
  * @returns {Promise<object>} Parsed envelope {ok, message, data, error, inspector}
  */
 export async function callApi(method, url, body = null) {
+    const token = getAuthToken();
+    const headers = {
+        'Content-Type': 'application/json',
+        'X-Role': getCurrentRole(),
+        'X-Requested-With': 'HospitalApp'      // CSRF defence: required by the server on writes
+    };
+
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+        headers['X-Session-Token'] = token;
+    }
+
     const options = {
         method: method.toUpperCase(),
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Role': getCurrentRole(),
-            'X-Requested-With': 'HospitalApp'      // CSRF defence: required by the server on writes
-        },
-        credentials: 'same-origin'
+        headers,
+        credentials: 'include' // Supports cookies across subdomains or origins
     };
 
     if (body !== null) {
@@ -30,6 +38,15 @@ export async function callApi(method, url, body = null) {
 
     try {
         const response = await fetch(`${API_BASE}${url}`, options);
+
+        if (response.status === 401 && !url.startsWith('/auth/')) {
+            // Unauthorized on protected route: clear local token & redirect if in main app
+            clearAuth();
+            if (window.location.pathname !== '/login') {
+                window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
+            }
+        }
+
         let envelope;
         try {
             envelope = await response.json();
@@ -55,6 +72,7 @@ export async function callApi(method, url, body = null) {
     }
 }
 
+
 /**
  * Convenience methods
  */
@@ -64,9 +82,36 @@ export const put = (url, body) => callApi('PUT', url, body);
 export const del = (url) => callApi('DELETE', url);
 
 /**
+ * Authentication storage helpers
+ */
+export function getAuthToken() {
+    try { return localStorage.getItem('hospital_token') || null; } catch (e) { return null; }
+}
+
+export function setAuthToken(token) {
+    try { localStorage.setItem('hospital_token', token); } catch (e) {}
+}
+
+export function clearAuth() {
+    try {
+        localStorage.removeItem('hospital_token');
+        localStorage.removeItem('hospital_user');
+        localStorage.removeItem('hospital_role');
+    } catch (e) {}
+}
+
+export async function logout() {
+    try {
+        await post('/auth/logout');
+    } catch (e) {}
+    clearAuth();
+    window.location.href = '/login';
+}
+
+/**
  * Get current role from localStorage or default
  */
-function getCurrentRole() {
+export function getCurrentRole() {
     try { return localStorage.getItem('hospital_role') || 'Admin'; } catch (e) { return 'Admin'; }
 }
 
@@ -76,6 +121,7 @@ function getCurrentRole() {
 export function setCurrentRole(role) {
     try { localStorage.setItem('hospital_role', role); } catch (e) { /* storage unavailable */ }
 }
+
 
 /**
  * Handle envelope response - shows toast, renders inspector, returns ok status

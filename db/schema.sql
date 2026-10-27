@@ -127,7 +127,7 @@ CREATE TABLE audit_log (
     CONSTRAINT chk_audit_act CHECK (action_type IN ('INSERT','UPDATE','DELETE'))
 );
 
--- ===== Technical Table (not part of ER diagram) =====
+-- ===== Technical Tables (not part of ER diagram) =====
 -- Used by triggers to know who made a change (SQLite has no USER)
 CREATE TABLE app_session (
     id       INTEGER PRIMARY KEY,
@@ -136,6 +136,30 @@ CREATE TABLE app_session (
 
 -- Insert default session row (username updated per request via role header)
 INSERT INTO app_session (id, username) VALUES (1, 'ADMIN');
+
+-- Password authentication & server-side session tables
+CREATE TABLE IF NOT EXISTS user_account (
+    user_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    username      TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    password_hash TEXT NOT NULL,
+    role          TEXT NOT NULL DEFAULT 'Admin',
+    full_name     TEXT,
+    is_active     INTEGER NOT NULL DEFAULT 1,
+    created_at    TEXT DEFAULT (datetime('now','localtime')),
+    last_login    TEXT,
+    CONSTRAINT chk_user_role CHECK (role IN ('Admin','Receptionist','Triage Nurse','Doctor','Billing'))
+);
+
+CREATE TABLE IF NOT EXISTS user_session (
+    session_id    TEXT PRIMARY KEY,
+    user_id       INTEGER NOT NULL,
+    username      TEXT NOT NULL,
+    role          TEXT NOT NULL,
+    created_at    TEXT DEFAULT (datetime('now','localtime')),
+    expires_at    TEXT NOT NULL,
+    CONSTRAINT fk_session_user FOREIGN KEY (user_id) REFERENCES user_account (user_id) ON DELETE CASCADE
+);
+
 
 -- ===== Indexes =====
 
