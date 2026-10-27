@@ -306,3 +306,10 @@ async function viewBillSummary(billId) {
 }
 
 window.pageRefresh = loadBilling;
+
+// Initial load (module scripts run after the DOM is parsed, so this works whether or not DOMContentLoaded already fired)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadBilling);
+} else {
+    loadBilling();
+}

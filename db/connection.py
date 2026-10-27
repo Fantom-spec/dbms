@@ -15,16 +15,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union
 
-# Optional PostgreSQL support via psycopg (v3)
-try:
-    import psycopg
-    from psycopg import Connection as PgConnection
-    from psycopg.rows import dict_row
-except Exception:
-    psycopg = None
-    PgConnection = None
-    dict_row = None
-
 PathLike = Union[str, Path]
 
 _TS_FORMATS = ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d')
@@ -48,23 +38,8 @@ def parse_timestamp(value: Optional[str]) -> Optional[datetime]:
     return None
 
 
-def get_connection(db_path: PathLike, *, read_only: bool = False) -> Union[HospitalConnection, PgConnection]:
-    """Create a database connection.
-
-    If Supabase/PostgreSQL environment variables are present, a PostgreSQL
-    connection (via psycopg) is returned. Otherwise the original SQLite
-    connection is created.
-    """
-    # Detect Supabase connection parameters
-    pg_url = os.getenv('DATABASE_URL') or os.getenv('SUPABASE_DB_URL')
-    if pg_url and psycopg:
-        # PostgreSQL path – ignore read_only (psycopg default is read/write)
-        conn = psycopg.connect(pg_url, row_factory=dict_row, isolation_level="read committed")
-        # Ensure UTC timestamps for consistency
-        conn.execute('SET TIME ZONE UTC')
-        return conn
-
-    # Fallback to SQLite (existing behavior)
+def get_connection(db_path: PathLike, *, read_only: bool = False) -> HospitalConnection:
+    """Create a SQLite connection (row access by column name, foreign keys on)."""
     if read_only:
         uri = Path(db_path).resolve().as_uri() + '?mode=ro'
         conn = sqlite3.connect(uri, uri=True, isolation_level=None,
@@ -80,17 +55,7 @@ def get_connection(db_path: PathLike, *, read_only: bool = False) -> Union[Hospi
 
 
 def register_udfs(conn) -> None:
-    """Register user‑defined functions for SQLite.
-    For PostgreSQL the equivalents are defined in ``db/schema_pg.sql`` and
-    therefore no registration is needed. This function simply returns when a
-    PostgreSQL connection is supplied.
-    """
-    # If this is a psycopg connection, skip registration – functions are already
-    # present in the database.
-    if psycopg and PgConnection is not None and isinstance(conn, PgConnection):
-        return
-
-    # SQLite path – unchanged implementation
+    """Register the user-defined SQL functions used by the triggers and queries."""
     def fn_days_stayed(visit_id) -> int:
         row = conn.execute(
             'SELECT admit_time, discharge_time FROM visit WHERE visit_id = ?', (visit_id,)

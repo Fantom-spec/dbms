@@ -53,8 +53,8 @@ TRUSTED_HOSTS = [
     if h.strip()
 ]
 
-# Simulated roles (NOT real authentication - see docs/SECURITY.md).
-# role name -> username written to app_session and therefore to audit_log.changed_by
+# Role names used for server-side authorization and isolated test role simulation.
+# Production identity is always derived from the authenticated user account.
 ROLE_USERNAMES = {
     'Admin': 'ADMIN',
     'Receptionist': 'RECEPTION1',
@@ -81,14 +81,17 @@ SESSION_LIFETIME_HOURS = int(os.environ.get('HOSPITAL_SESSION_HOURS', '12'))
 RATE_LIMIT_MAX_ATTEMPTS = int(os.environ.get('AUTH_MAX_ATTEMPTS', '5'))
 RATE_LIMIT_LOCKOUT_MINUTES = int(os.environ.get('AUTH_LOCKOUT_MINUTES', '15'))
 
-AUTH_REQUIRED = os.getenv('AUTH_REQUIRED', '0') == '1'
+# Authentication is enabled unless explicitly disabled for isolated tests.
+AUTH_REQUIRED = os.getenv('AUTH_REQUIRED', '1').strip().lower() in ('1', 'true', 'yes', 'on')
+# Role simulation is a development/testing convenience only; never enable in production.
+ROLE_SIMULATION_ENABLED = os.getenv('ROLE_SIMULATION_ENABLED', '0').strip().lower() in ('1', 'true', 'yes', 'on')
 
-# Allowed origins for CORS (main frontend and standalone schema-demo frontend)
+# Allowed origins for explicitly enabled cross-origin clients
 CORS_ALLOWED_ORIGINS = [
     o.strip() for o in
     os.environ.get(
         'CORS_ALLOWED_ORIGINS',
-        'http://localhost:5000,http://127.0.0.1:5000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174'
+        'http://localhost:5000,http://127.0.0.1:5000'
     ).split(',')
     if o.strip()
 ]

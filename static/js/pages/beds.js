@@ -294,3 +294,10 @@ async function submitSetBedStatus() {
 }
 
 window.pageRefresh = loadBeds;
+
+// Initial load (module scripts run after the DOM is parsed, so this works whether or not DOMContentLoaded already fired)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadBeds);
+} else {
+    loadBeds();
+}

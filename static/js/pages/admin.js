@@ -333,3 +333,10 @@ async function setBedStatus(bedId, status) {
 }
 
 window.pageRefresh = loadAdmin;
+
+// Initial load (module scripts run after the DOM is parsed, so this works whether or not DOMContentLoaded already fired)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadAdmin);
+} else {
+    loadAdmin();
+}

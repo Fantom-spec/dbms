@@ -14,17 +14,10 @@ const API_BASE = window.__API_BASE__ || '/api';
  * @returns {Promise<object>} Parsed envelope {ok, message, data, error, inspector}
  */
 export async function callApi(method, url, body = null) {
-    const token = getAuthToken();
     const headers = {
         'Content-Type': 'application/json',
-        'X-Role': getCurrentRole(),
-        'X-Requested-With': 'HospitalApp'      // CSRF defence: required by the server on writes
+        'X-Requested-With': 'HospitalApp' // required for state-changing same-origin requests
     };
-
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-        headers['X-Session-Token'] = token;
-    }
 
     const options = {
         method: method.toUpperCase(),
@@ -84,17 +77,8 @@ export const del = (url) => callApi('DELETE', url);
 /**
  * Authentication storage helpers
  */
-export function getAuthToken() {
-    try { return localStorage.getItem('hospital_token') || null; } catch (e) { return null; }
-}
-
-export function setAuthToken(token) {
-    try { localStorage.setItem('hospital_token', token); } catch (e) {}
-}
-
 export function clearAuth() {
     try {
-        localStorage.removeItem('hospital_token');
         localStorage.removeItem('hospital_user');
         localStorage.removeItem('hospital_role');
     } catch (e) {}

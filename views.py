@@ -3,6 +3,7 @@ Frontend views for Smart Hospital Management System.
 All dynamic data comes from /api/* endpoints via fetch().
 """
 from flask import Blueprint, current_app, g, redirect, render_template, request, url_for
+from urllib.parse import urlsplit
 
 import config
 from auth import get_user_from_session, init_auth_tables, invalidate_session
@@ -10,12 +11,20 @@ from db.connection import get_connection
 
 views_bp = Blueprint('views', __name__)
 
+def _safe_next(value):
+    if not value:
+        return url_for('views.dashboard')
+    parsed = urlsplit(value)
+    if parsed.scheme or parsed.netloc or not value.startswith('/') or value.startswith('//') or '\\' in value:
+        return url_for('views.dashboard')
+    return value
+
 
 @views_bp.before_request
 def check_authentication():
     """Server-side route protection for web views."""
     # Allow public access to login page
-    if request.endpoint in ('views.login', 'static'):
+    if request.endpoint in ('views.login', 'views.logout', 'static'):
         return None
 
     # Check if authentication enforcement is enabled
@@ -40,6 +49,24 @@ def check_authentication():
     finally:
         conn.close()
 
+    # Page-level access mirrors the API's least-privilege rules.
+    role = g.user.get('role')
+    page = request.endpoint.rsplit('.', 1)[-1] if request.endpoint else ''
+    page_roles = {
+        'patients': {'Admin', 'Receptionist', 'Triage Nurse', 'Doctor'},
+        'appointments': {'Admin', 'Receptionist', 'Triage Nurse'},
+        'emergency': {'Admin', 'Receptionist', 'Triage Nurse', 'Doctor'},
+        'beds': {'Admin', 'Receptionist', 'Triage Nurse', 'Doctor'},
+        'pharmacy': {'Admin', 'Doctor'},
+        'billing': {'Admin', 'Billing'},
+        'reports': {'Admin', 'Billing'},
+        'audit': {'Admin'},
+        'admin': {'Admin'},
+    }
+    allowed = page_roles.get(page)
+    if allowed is not None and role not in allowed:
+        return ('<h1>403 - Forbidden</h1><p>You do not have permission to view this page.</p>', 403)
+
 
 @views_bp.app_context_processor
 def inject_globals():
@@ -59,14 +86,14 @@ def login():
             init_auth_tables(conn)
             user = get_user_from_session(conn, token)
             if user:
-                next_url = request.args.get('next') or url_for('views.dashboard')
+                next_url = _safe_next(request.args.get('next'))
                 return redirect(next_url)
         finally:
             conn.close()
-    return render_template('login.html', next=request.args.get('next', ''))
+    return render_template('login.html', next=_safe_next(request.args.get('next')))
 
 
-@views_bp.route('/logout')
+@views_bp.route('/logout', methods=['POST'])
 def logout():
     token = request.cookies.get(config.SESSION_COOKIE_NAME)
     if token:

@@ -95,15 +95,14 @@ def stub_handler(subpath=''):
     """Catch-all handler for /api/* routes in stub mode."""
     method = request.method
     full_path = f"/api/{subpath}" if subpath else "/api/"
+    if subpath == 'sql' or subpath.startswith('schema/') or subpath.startswith('demo/'):
+        return jsonify({"ok": False, "message": "Endpoint not found", "data": None,
+                        "error": {"kind": "not_found", "code": "ENDPOINT_NOT_FOUND", "constraint": None, "detail": "This feature was removed. See docs/DEMO.md for the written walkthrough."},
+                        "inspector": None}), 404
     # Include query string for _fail=1 detection
     if request.query_string:
         full_path += '?' + request.query_string.decode('utf-8')
 
     fixture = _load_fixture(method, full_path)
-
-    # For demo steps, we might need to check step order
-    if '/demo/' in full_path and method == 'POST':
-        # Could add prerequisite check logic here if needed
-        pass
 
     return jsonify(fixture)

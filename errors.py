@@ -13,7 +13,7 @@ from typing import Optional, Tuple
 class BusinessRuleError(Exception):
     """Raised when a business rule is violated (or a request is invalid / not found).
 
-    ``kind`` follows CONTRACT.md: business_rule | not_found | validation | constraint.
+    ``kind`` follows docs/API_CONTRACT.md: business_rule | not_found | validation | constraint.
     """
     kind = 'business_rule'
 

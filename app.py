@@ -36,6 +36,7 @@ def create_app(test_config=None):
         FLASK_API_MODE=default_config.FLASK_API_MODE,
         TRUSTED_HOSTS=default_config.TRUSTED_HOSTS,
         AUTH_REQUIRED=default_config.AUTH_REQUIRED,
+        ROLE_SIMULATION_ENABLED=default_config.ROLE_SIMULATION_ENABLED,
         MAX_CONTENT_LENGTH=256 * 1024,
         JSON_SORT_KEYS=False,
     )
@@ -45,23 +46,17 @@ def create_app(test_config=None):
         raise RuntimeError("FLASK_API_MODE must be 'real' or 'stub'")
     app.json.sort_keys = False
 
-    # ---- database: create it if it does not exist (never overwrite an existing one) ----
+    # ---- database initialization ----
     if app.config['FLASK_API_MODE'] == 'real':
         db_file = Path(app.config['DB_PATH'])
         if not db_file.exists():
             from db.init_db import init_database
             init_database(db_file)
-        from auth import init_auth_tables, create_user
+        from auth import init_auth_tables
         from db.connection import get_connection
         conn = get_connection(db_file)
         try:
             init_auth_tables(conn)
-            admin_user = os.environ.get('HOSPITAL_ADMIN_USER') or os.environ.get('ADMIN_USERNAME')
-            admin_pass = os.environ.get('HOSPITAL_ADMIN_PASSWORD') or os.environ.get('ADMIN_PASSWORD')
-            if admin_user and admin_pass:
-                exists = conn.execute("SELECT 1 FROM user_account WHERE username = ?", (admin_user,)).fetchone()
-                if not exists:
-                    create_user(conn, admin_user, admin_pass, role='Admin', full_name='System Administrator')
         finally:
             conn.close()
 
@@ -87,7 +82,7 @@ def create_app(test_config=None):
                 resp.headers['Access-Control-Allow-Credentials'] = 'true'
                 resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
                 resp.headers['Access-Control-Allow-Headers'] = (
-                    'Content-Type, X-Role, X-Requested-With, Authorization, X-Session-Token'
+                    'Content-Type, X-Requested-With'
                 )
                 resp.headers['Access-Control-Max-Age'] = '86400'
             return resp
@@ -108,7 +103,7 @@ def create_app(test_config=None):
             resp.headers['Access-Control-Allow-Credentials'] = 'true'
             resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
             resp.headers['Access-Control-Allow-Headers'] = (
-                'Content-Type, X-Role, X-Requested-With, Authorization, X-Session-Token'
+                'Content-Type, X-Requested-With'
             )
         return resp
 
@@ -153,7 +148,7 @@ def create_app(test_config=None):
 
 def main():
     host = os.environ.get('HOSPITAL_HOST', '127.0.0.1')
-    port = int(os.environ.get('PORT', '5000'))
+    port = int(os.environ.get('PORT', '8000'))
     app = create_app()
     print(f'Smart Hospital Management System -> http://{host}:{port}  '
           f'(mode={app.config["FLASK_API_MODE"]}, db={app.config["DB_PATH"]})', file=sys.stderr)

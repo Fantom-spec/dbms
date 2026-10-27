@@ -222,7 +222,7 @@ def authenticate_user(conn: sqlite3.Connection, username: str, password: str,
 
     if not row['is_active']:
         record_failed_login(client_ip, username)
-        return None, "Account is disabled. Please contact the administrator."
+        return None, "Invalid username or password"
 
     if not verify_password(row['password_hash'], password):
         record_failed_login(client_ip, username)

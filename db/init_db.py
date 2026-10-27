@@ -3,7 +3,7 @@
 Safe database initialisation for the Smart Hospital Management System.
 
 Builds a database from ``schema.sql -> seed.sql -> triggers.sql`` and verifies the
-golden row counts from ARCHITECTURE.md / CONTRACT.md section 9.
+golden row counts from ARCHITECTURE.md / docs/API_CONTRACT.md section 9.
 
 SAFETY (this replaced a script that unconditionally deleted ``hospital.db``):
 

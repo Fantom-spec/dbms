@@ -14,7 +14,7 @@ H = {'X-Requested-With': 'HospitalApp'}
 @pytest.fixture()
 def api(tmp_path):
     db = tmp_path / 'api_test.db'
-    application = app_module.create_app({'TESTING': True, 'DB_PATH': str(db), 'FLASK_API_MODE': 'real'})
+    application = app_module.create_app({'TESTING': True, 'DB_PATH': str(db), 'FLASK_API_MODE': 'real', 'AUTH_REQUIRED': False})
     assert_safe_db(db)
     client = application.test_client()
 
@@ -43,6 +43,17 @@ def assert_envelope(js):
         assert js['error']['kind'] in ('constraint', 'business_rule', 'not_found', 'validation', 'internal')
 
 
+def test_authentication_is_enforced_when_enabled(tmp_path):
+    db = tmp_path / 'auth_required.db'
+    application = app_module.create_app({'TESTING': True, 'DB_PATH': str(db), 'FLASK_API_MODE': 'real', 'AUTH_REQUIRED': True})
+    client = application.test_client()
+    assert client.get('/login').status_code == 200
+    assert client.get('/').status_code in (302, 303)
+    response = client.get('/api/meta')
+    assert response.status_code == 401
+    assert response.get_json()['error']['code'] == 'UNAUTHORIZED'
+
+
 def test_database_created_when_missing(api):
     assert api.path.exists()
     s, js = api.get('/api/meta')
@@ -52,8 +63,7 @@ def test_database_created_when_missing(api):
 GETS = ['/api/meta', '/api/lookups', '/api/dashboard', '/api/patients', '/api/patients/107/history', '/api/doctors',
         '/api/medicines', '/api/medicines/low-stock', '/api/beds', '/api/visits', '/api/visits/407/summary',
         '/api/emergency/queue', '/api/visits/407/prescriptions', '/api/bills', '/api/bills/pending', '/api/reports',
-        '/api/audit',
-        '/api/demo/steps', '/api/demo/state'] + [f'/api/reports/q{i:02d}' for i in range(1, 20)]
+        '/api/audit'] + [f'/api/reports/q{i:02d}' for i in range(1, 20)]
 
 
 @pytest.mark.parametrize('url', GETS)
@@ -80,7 +90,7 @@ def test_csrf_header_required(api):
 
 def test_bad_json_is_400_envelope(api):
     import app as a
-    c = a.create_app({'TESTING': True, 'DB_PATH': str(api.path)}).test_client()
+    c = a.create_app({'TESTING': True, 'DB_PATH': str(api.path), 'AUTH_REQUIRED': False}).test_client()
     r = c.post('/api/patients', data='[1,2', headers={**H, 'Content-Type': 'application/json'})
     assert r.status_code == 400 and r.get_json()['ok'] is False
     r = c.post('/api/patients', data='[1]', headers={**H, 'Content-Type': 'application/json'})
@@ -211,21 +221,10 @@ def test_reset_needs_confirm_and_restores_data(api):
     assert api.get('/api/meta')[1]['data']['counts']['patient'] == 12
 
 
-def test_full_guided_demo(api):
-    s, js = api.get('/api/demo/steps')
-    ids = [st['id'] for t in js['data'] for st in t['steps']]
-    s, r = api.post(f'/api/demo/{ids[3]}/run')                       # skipping prerequisites
-    s, r = api.post('/api/demo/T3.2/run')
-    assert r['error']['code'] == 'STEP_ORDER'
-    for sid in ids:
-        s, r = api.post(f'/api/demo/{sid}/run')
-        assert r['ok'], (sid, r)
-        failed = [c for c in r['data']['checks'] if not c['passed']]
-        assert not failed, (sid, failed)
-    assert set(api.get('/api/demo/state')[1]['data']['completed']) == set(ids)
-    assert api.post('/api/demo/T9.9/run')[1]['error']['code'] == 'STEP_NOT_FOUND'
-    api.post('/api/reset', {'confirm': True})
-    assert api.get('/api/demo/state')[1]['data']['completed'] == []
+def test_interactive_demo_endpoints_removed(api):
+    for url in ('/api/demo/steps', '/api/demo/state', '/api/demo/T1.1/run'):
+        response = api.call('GET' if url.endswith(('steps', 'state')) else 'POST', url, {})
+        assert response[0] == 404, (url, response)
 
 
 def test_no_exception_text_leaks(api, monkeypatch):
@@ -244,7 +243,7 @@ PAGES = ['/', '/patients', '/appointments', '/emergency', '/beds', '/pharmacy', 
 @pytest.mark.parametrize('url', PAGES)
 def test_pages_render_without_cdn(api, url):
     import app as a
-    c = a.create_app({'TESTING': True, 'DB_PATH': str(api.path)}).test_client()
+    c = a.create_app({'TESTING': True, 'DB_PATH': str(api.path), 'AUTH_REQUIRED': False}).test_client()
     r = c.get(url)
     assert r.status_code == 200
     html = r.get_data(as_text=True)
@@ -280,7 +279,6 @@ PERMISSION_CASES = [
     ('Receptionist', 'POST', '/api/reset', {'confirm': True}, False),
     ('Receptionist', 'POST', '/api/audit/tamper-test', {}, False),
     ('Receptionist', 'POST', '/api/doctors', {}, False),
-    ('Doctor', 'POST', '/api/demo/T1.1/run', {}, False),
 ]
 
 
@@ -301,11 +299,20 @@ def test_forbidden_write_changes_nothing(api):
     assert api.raw().execute('SELECT payment_status FROM bill WHERE bill_id = 706').fetchone() == before
 
 
-def test_reads_are_open_to_every_role(api):
-    for role in ('Receptionist', 'Triage Nurse', 'Doctor', 'Billing'):
+def test_read_permissions_are_role_limited(api):
+    allowed = {
+        'Receptionist': ('/api/patients', '/api/medicines', '/api/beds'),
+        'Triage Nurse': ('/api/patients', '/api/medicines', '/api/beds'),
+        'Doctor': ('/api/patients', '/api/medicines', '/api/beds'),
+        'Billing': ('/api/bills', '/api/medicines', '/api/beds'),
+    }
+    for role, allowed_urls in allowed.items():
         for url in ('/api/patients', '/api/bills', '/api/medicines', '/api/beds'):
-            s, js = api.get(url, role=role)
-            assert s == 200 and js['ok'], (role, url)
+            status, payload = api.get(url, role=role)
+            if url in allowed_urls:
+                assert status == 200 and payload['ok'], (role, url, payload)
+            else:
+                assert status == 403 and payload['error']['code'] == 'FORBIDDEN', (role, url, payload)
 
 
 def test_logged_in_user_cannot_escalate_with_role_header(api):
@@ -322,6 +329,7 @@ def test_logged_in_user_cannot_escalate_with_role_header(api):
     h = {'X-Requested-With': 'HospitalApp'}
     r = c.post('/api/auth/login', json={'username': 'frontdesk1', 'password': 'Str0ng!Passw0rd#9'}, headers=h)
     assert r.get_json()['ok'], r.get_json()
+    assert 'token' not in r.get_json()['data']
     r = c.post('/api/bills/706/pay', json={'payment_mode': 'Cash'}, headers={**h, 'X-Role': 'Admin'})
     assert r.status_code == 403 and r.get_json()['error']['code'] == 'FORBIDDEN'
     assert c.get('/api/meta', headers={**h, 'X-Role': 'Admin'}).get_json()['data']['role'] == 'Receptionist'

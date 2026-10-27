@@ -4,13 +4,13 @@ Secure Administrator Bootstrap CLI.
 
 Usage:
   Interactive mode:
-    python bootstrap_admin.py
+    python scripts/bootstrap_admin.py
 
   Non-interactive mode (e.g. Docker, CI/CD, deployment scripts):
-    HOSPITAL_ADMIN_USER=admin HOSPITAL_ADMIN_PASSWORD=StrongPass123! python bootstrap_admin.py
+    HOSPITAL_ADMIN_USER=admin HOSPITAL_ADMIN_PASSWORD=StrongPass123! python scripts/bootstrap_admin.py
 
-  Command-line arguments:
-    python bootstrap_admin.py --username admin --password StrongPass123! --role Admin
+  Optional username can be provided with --username. Passwords should be entered
+  interactively or supplied through a protected deployment secret environment variable.
 """
 import argparse
 import getpass
@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 # Add project root to sys.path
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
 import config
@@ -93,13 +93,12 @@ def bootstrap_admin(username=None, password=None, role="Admin", full_name="Syste
 def main():
     parser = argparse.ArgumentParser(description="Bootstrap Administrator Account for Hospital Management System")
     parser.add_argument("-u", "--username", help="Administrator username")
-    parser.add_argument("-p", "--password", help="Administrator password")
     parser.add_argument("-r", "--role", default="Admin", help="Role (default: Admin)")
     parser.add_argument("--name", default="System Administrator", help="Full name")
     parser.add_argument("--db", help="Path to database file")
 
     args = parser.parse_args()
-    return bootstrap_admin(username=args.username, password=args.password, role=args.role,
+    return bootstrap_admin(username=args.username, role=args.role,
                            full_name=args.name, db_path=args.db)
 
 

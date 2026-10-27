@@ -5,7 +5,7 @@
 
 import { get, post, handle, preventDoubleSubmit } from '../api.js';
 import { renderTable } from '../tables.js';
-import { openInspector, getTriageBadgeClass, getTriageLabel } from '../app.js';
+import { openInspector, getTriageBadgeClass, getTriageLabel, showEmptyState } from '../app.js';
 
 let autoRefreshInterval = null;
 let currentQueueData = null;
@@ -217,3 +217,10 @@ async function dischargeVisit(id) {
 window.addEventListener('beforeunload', stopAutoRefresh);
 
 window.pageRefresh = loadEmergency;
+
+// Initial load (module scripts run after the DOM is parsed, so this works whether or not DOMContentLoaded already fired)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadEmergency);
+} else {
+    loadEmergency();
+}

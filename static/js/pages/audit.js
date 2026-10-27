@@ -181,3 +181,10 @@ async function runTamperTest(mode) {
 }
 
 window.pageRefresh = loadAudit;
+
+// Initial load (module scripts run after the DOM is parsed, so this works whether or not DOMContentLoaded already fired)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadAudit);
+} else {
+    loadAudit();
+}

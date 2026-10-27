@@ -1,10 +1,8 @@
 """
-Real API blueprint: thin handlers that call services / queries / introspect / demo.
+Real API blueprint: thin handlers that call services and report queries.
 
 * One database connection per request (``g.db``), closed in teardown.
-* Role simulation: the ``X-Role`` header selects a username which is written to
-  ``app_session`` at the start of every request (the audit triggers read it).
-  This is NOT authentication - see docs/SECURITY.md.
+* Identity and role are derived from the server-side session, never from client headers.
 * Every response is the contract envelope ``{ok, message, data, error, inspector}``.
 * State-changing requests must carry ``X-Requested-With: HospitalApp`` (CSRF defence).
 """
@@ -15,7 +13,8 @@ from flask import Blueprint, Response, current_app, g, jsonify, request
 import config
 import services as svc
 from db.connection import get_connection
-from demo import get_demo_state, get_demo_steps, reset_demo, run_demo_step
+from db.reset_demo import reset_demo
+
 from errors import BusinessRuleError, error_payload, map_sqlite_error
 from inspector import Capture, build_inspector
 
@@ -36,8 +35,7 @@ SAFE_METHODS = ('GET', 'HEAD', 'OPTIONS')
 
 # --------------------------------------------------------------------------- role permissions
 # Which roles may call each state-changing endpoint (keyed by view-function name).
-# Admin may do everything. Read-only (GET) endpoints are open to every role.
-# Mirrors the navigation shown to each role in static/js/app.js.
+# Admin may do everything. Sensitive reads and all writes use explicit role rules.
 FRONT_DESK = ('Receptionist', 'Triage Nurse')
 CLINICAL = ('Doctor',)
 WRITE_PERMISSIONS = {
@@ -54,16 +52,34 @@ WRITE_PERMISSIONS = {
     'generate_bill': ('Billing',), 'pay_bill': ('Billing',),
     # administration (Admin only)
     'delete_patient': (), 'create_doctor': (), 'update_doctor': (), 'create_medicine': (),
-    'create_bed': (), 'reset': (), 'tamper_test': (), 'demo_run': (),
+    'create_bed': (), 'tamper_test': (), 'reset': (),
 }
 
 
-def _role_allowed(endpoint, role):
-    """True if ``role`` may call a write endpoint. Unlisted endpoints are not role-restricted."""
+READ_PERMISSIONS = {
+    # Sensitive data is not available to every authenticated role.
+    'list_patients': ('Receptionist', 'Triage Nurse', 'Doctor'),
+    'patient_history': ('Receptionist', 'Triage Nurse', 'Doctor'),
+    'list_visits': ('Receptionist', 'Triage Nurse', 'Doctor'),
+    'visit_summary': ('Receptionist', 'Triage Nurse', 'Doctor'),
+    'list_prescriptions': ('Doctor',),
+    'list_bills': ('Billing',),
+    'pending_bills': ('Billing',),
+    'reports': ('Billing',),
+    'report': ('Billing',),
+    'audit': (),
+    'get_users': (),
+}
+
+def _role_allowed(endpoint, role, method='POST'):
+    """Enforce explicit role rules; unknown writes are admin-only by default."""
     if role == 'Admin':
         return True
+    if method in SAFE_METHODS:
+        allowed = READ_PERMISSIONS.get(endpoint)
+        return True if allowed is None else role in allowed
     allowed = WRITE_PERMISSIONS.get(endpoint)
-    return allowed is None or role in allowed
+    return role in allowed if allowed is not None else False
 
 
 class BadRequest(Exception):
@@ -100,13 +116,9 @@ def body():
 # --------------------------------------------------------------------------- request lifecycle
 
 def _extract_token():
-    token = request.cookies.get(config.SESSION_COOKIE_NAME)
-    if token:
-        return token
-    hdr = request.headers.get('Authorization')
-    if hdr and hdr.startswith('Bearer '):
-        return hdr[7:].strip()
-    return request.headers.get('X-Session-Token')
+    # The same-origin application uses an HttpOnly cookie. Do not accept session
+    # credentials from JavaScript-readable storage or arbitrary request headers.
+    return request.cookies.get(config.SESSION_COOKIE_NAME)
 
 
 @api_bp.before_request
@@ -134,29 +146,31 @@ def open_connection():
         return fail('Authentication required', 'authentication', 'UNAUTHORIZED',
                     'Please log in with valid credentials to access this resource', status=401)
 
-    # Resolve active role for application session and audit triggers
-    requested_role = request.headers.get('X-Role')
-    if g.user:
-        # Admins can simulate other roles during demonstration; other roles use their assigned role
-        if g.user.get('role') == 'Admin' and requested_role in config.ROLE_USERNAMES:
-            g.role = requested_role
-        else:
-            g.role = g.user.get('role', config.DEFAULT_ROLE)
-        g.username = config.ROLE_USERNAMES.get(g.role, g.user.get('username'))
-    else:
-        role = requested_role or config.DEFAULT_ROLE
-        if role not in config.ROLE_USERNAMES:
-            return fail(f'Unknown role: {role[:40]!r}', 'validation', 'INVALID_ROLE',
-                        f'Role must be one of: {", ".join(ROLES)}', status=400)
-        g.role = role
-        g.username = config.ROLE_USERNAMES[role]
+    # Public auth endpoints must remain reachable before a session exists.
+    if is_public and not g.user:
+        g.role = config.DEFAULT_ROLE
+        g.username = 'ANONYMOUS'
+        return None
 
-    # Role-based authorization for state-changing requests
-    if request.method not in SAFE_METHODS:
-        endpoint = (request.endpoint or '').rsplit('.', 1)[-1]
-        if not _role_allowed(endpoint, g.role):
-            return fail(f'The {g.role} role is not permitted to perform this action', 'authorization',
-                        'FORBIDDEN', f'Your role ({g.role}) does not have permission for this operation', status=403)
+    # Resolve identity and role only from a verified session. Role simulation is
+    # available solely in explicit test configurations with auth disabled.
+    if g.user:
+        g.role = g.user.get('role', config.DEFAULT_ROLE)
+        g.username = g.user.get('username') or config.ROLE_USERNAMES.get(g.role, 'UNKNOWN')
+    elif not auth_enforced and (current_app.testing or current_app.config.get('ROLE_SIMULATION_ENABLED', False)):
+        requested_role = request.headers.get('X-Role', config.DEFAULT_ROLE)
+        if requested_role not in config.ROLE_USERNAMES:
+            return fail('Invalid role', 'validation', 'INVALID_ROLE',
+                        f'Role must be one of: {", ".join(ROLES)}', status=400)
+        g.role = requested_role
+        g.username = config.ROLE_USERNAMES[requested_role]
+    else:
+        return fail('Authentication required', 'authentication', 'UNAUTHORIZED', status=401)
+
+    endpoint = (request.endpoint or '').rsplit('.', 1)[-1]
+    if endpoint not in ('auth_login', 'auth_logout', 'auth_me') and not _role_allowed(endpoint, g.role, request.method):
+        return fail(f'The {g.role} role is not permitted to access this resource', 'authorization',
+                    'FORBIDDEN', f'Your role ({g.role}) does not have permission for this operation', status=403)
 
     g.db.execute('INSERT OR IGNORE INTO app_session (id, username) VALUES (1, ?)', (g.username,))
     g.db.execute('UPDATE app_session SET username = ? WHERE id = 1', (g.username,))
@@ -259,7 +273,8 @@ def auth_login():
     if not username or not password:
         return fail('Username and password are required', 'validation', 'MISSING_CREDENTIALS', status=400)
 
-    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or '127.0.0.1').split(',')[0].strip()
+    # Do not trust client-supplied forwarding headers; configure a trusted proxy explicitly if needed.
+    client_ip = request.remote_addr or '127.0.0.1'
     user, err = authenticate_user(g.db, username, password, client_ip=client_ip)
     if err:
         return fail(err, 'authentication', 'INVALID_CREDENTIALS', status=401)
@@ -268,11 +283,10 @@ def auth_login():
 
     g.user = user
     g.role = user['role']
-    g.username = config.ROLE_USERNAMES.get(g.role, user['username'])
+    g.username = user['username']
     g.db.execute('UPDATE app_session SET username = ? WHERE id = 1', (g.username,))
 
     resp = envelope(True, f"Welcome back, {user.get('full_name') or user['username']}!", {
-        'token': token,
         'expires_at': expires.strftime('%Y-%m-%d %H:%M:%S'),
         'user': user
     })
@@ -352,6 +366,8 @@ def _display_db_path():
 
 @api_bp.route('/role', methods=['POST'])
 def set_role():
+    if not g.user or g.user.get('role') != 'Admin' or not current_app.config.get('ROLE_SIMULATION_ENABLED', False):
+        return fail('Role simulation is disabled', 'authorization', 'FORBIDDEN', status=403)
     data = body()
     role = data.get('role')
     if role not in config.ROLE_USERNAMES:
@@ -363,16 +379,17 @@ def set_role():
 
 @api_bp.route('/reset', methods=['POST'])
 def reset():
+    """Admin-only maintenance reset; intentionally not linked from the website."""
     data = body()
     if data.get('confirm') is not True:
-        return fail('Reset needs confirmation: send {"confirm": true}', 'validation', 'CONFIRM_REQUIRED')
+        return fail('Reset needs confirmation: send {\"confirm\": true}', 'validation', 'CONFIRM_REQUIRED')
     g.db.close()
     try:
         info = reset_demo(current_app.config['DB_PATH'])
     finally:
         g.db = get_connection(current_app.config['DB_PATH'])
         g.db.execute('UPDATE app_session SET username = ? WHERE id = 1', (g.username,))
-    return envelope(True, 'Database restored to the seeded demo state', {'counts': info['counts']})
+    return envelope(True, 'Database restored to the seeded state', {'counts': info['counts']})
 
 
 @api_bp.route('/lookups', methods=['GET'])
@@ -684,26 +701,3 @@ def tamper_test():
 
 
 
-# --------------------------------------------------------------------------- guided demo
-
-@api_bp.route('/demo/steps', methods=['GET'])
-def demo_steps():
-    return read(lambda: get_demo_steps(g.db)['data'], 'Demo steps retrieved')
-
-
-@api_bp.route('/demo/state', methods=['GET'])
-def demo_state():
-    return read(lambda: get_demo_state(g.db)['data'], 'Demo state retrieved')
-
-
-@api_bp.route('/demo/<step_id>/run', methods=['POST'])
-def demo_run(step_id):
-    # Each guided-demo step runs as the role the script assigns to it (audit_log.changed_by).
-    from demo import DEMO_STEPS
-    step = next((st for t in DEMO_STEPS for st in t['steps'] if st['id'] == step_id), None)
-    if step and step.get('role') in config.ROLE_USERNAMES:
-        g.role, g.username = step['role'], config.ROLE_USERNAMES[step['role']]
-        g.db.execute('UPDATE app_session SET username = ? WHERE id = 1', (g.username,))
-    return run(f'demo_{step_id}', lambda: run_demo_step(g.db, step_id)['data'],
-               lambda r: f"Demo step {step_id} {'passed' if all(c['passed'] for c in r['checks']) else 'FAILED'}",
-               component(f'demo_{step_id}', 'procedure', 'guided demo step'))

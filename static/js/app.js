@@ -3,7 +3,7 @@
  * Handles global UI: sidebar, role switcher, reset, inspector panel, navigation
  */
 
-import { callApi, post, get, setCurrentRole, handle, formatCurrency } from './api.js';
+import { get, formatCurrency } from './api.js';
 import { openInspector, closeInspector } from './inspector.js';
 
 // Global state
@@ -16,9 +16,7 @@ let inspectorBody = null;
 document.addEventListener('DOMContentLoaded', () => {
     detectIconFont();
     initSidebar();
-    initRoleSwitcher();
     initInspectorSwitch();
-    initResetButton();
     initInspectorPanel();
     initNavigationHighlight();
     loadMeta();
@@ -61,81 +59,23 @@ function initSidebar() {
 }
 
 /**
- * Initialize role switcher dropdown
+ * Role display is sourced from the authenticated server session; users cannot
+ * switch their own permissions in the browser.
  */
 function initRoleSwitcher() {
-    const dropdownItems = document.querySelectorAll('#roleDropdown + .dropdown-menu .dropdown-item');
     const roleDisplay = document.getElementById('currentRole');
-
-    dropdownItems.forEach(item => {
-        item.addEventListener('click', async (e) => {
-            e.preventDefault();
-            const role = item.dataset.role;
-            await switchRole(role);
-        });
-    });
-
-    // Load saved role
-    const savedRole = localStorage.getItem('hospital_role');
-    if (savedRole) {
-        switchRole(savedRole, false); // Don't call API again, just update UI
-    }
+    if (roleDisplay) roleDisplay.textContent = 'Signed in';
 }
 
-/**
- * Switch role via API and update UI
- */
-async function switchRole(role, callApiEndpoint = true) {
-    if (callApiEndpoint) {
-        const envelope = await post('/role', { role });
-        if (!envelope.ok) {
-            handle(envelope, { errorToast: true });
-            return;
-        }
-    }
-
+function switchRole(role) {
     currentRole = role;
-    setCurrentRole(role);
-
-    // Update display
     const roleDisplay = document.getElementById('currentRole');
     if (roleDisplay) roleDisplay.textContent = role;
-
-    // Update dropdown active state
-    document.querySelectorAll('#roleDropdown + .dropdown-menu .dropdown-item').forEach(item => {
-        item.classList.toggle('active', item.dataset.role === role);
-    });
-
-    // Hide/show nav items based on role
-    updateNavVisibility(role);
-
-    // Refresh current page if it has a refresh function
-    if (window.pageRefresh) {
-        window.pageRefresh();
-    }
 }
 
-/**
- * Update navigation visibility based on role (ARCHITECTURE section 13)
- */
-function updateNavVisibility(role) {
-    const roleNavMap = {
-        'Admin': ['dashboard', 'patients', 'appointments', 'emergency', 'beds', 'pharmacy', 'billing', 'reports', 'audit', 'demo', 'schema', 'admin'],
-        'Receptionist': ['dashboard', 'patients', 'appointments', 'emergency', 'beds', 'demo', 'schema'],
-        'Triage Nurse': ['dashboard', 'patients', 'appointments', 'emergency', 'beds', 'demo', 'schema'],
-        'Doctor': ['dashboard', 'emergency', 'beds', 'pharmacy', 'demo', 'schema'],
-        'Billing': ['dashboard', 'billing', 'reports', 'demo', 'schema']
-    };
-
-    const allowedPages = roleNavMap[role] || roleNavMap['Admin'];
-
-    document.querySelectorAll('.sidebar-nav .nav-item').forEach(item => {
-        const link = item.querySelector('.nav-link');
-        if (link) {
-            const page = link.dataset.page;
-            item.style.display = allowedPages.includes(page) ? '' : 'none';
-        }
-    });
+function updateNavVisibility() {
+    // Server-side route and API authorization are authoritative. Navigation is
+    // not used as a security boundary.
 }
 
 /**
@@ -148,42 +88,6 @@ function initInspectorSwitch() {
             alwaysShowInspector = e.target.checked;
             localStorage.setItem('hospital_inspector_always', alwaysShowInspector);
             updateInspectorVisibility();
-        });
-    }
-}
-
-/**
- * Initialize reset button
- */
-function initResetButton() {
-    const resetBtn = document.getElementById('resetBtn');
-    if (resetBtn) {
-        resetBtn.addEventListener('click', async () => {
-            if (!confirm('Reset the demo database? This will clear all demo progress and restore seed data.')) {
-                return;
-            }
-
-            resetBtn.disabled = true;
-            resetBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Resetting...';
-
-            try {
-                const envelope = await post('/reset', { confirm: true });
-                handle(envelope, {
-                    successToast: true,
-                    errorToast: true,
-                    onSuccess: () => {
-                        // Reset demo state
-                        localStorage.removeItem('hospital_demo_state');
-                        // Refresh all pages
-                        if (window.pageRefresh) window.pageRefresh();
-                        // Reset role to Admin
-                        switchRole('Admin');
-                    }
-                });
-            } finally {
-                resetBtn.disabled = false;
-                resetBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Reset';
-            }
         });
     }
 }
@@ -265,13 +169,12 @@ async function loadMeta() {
             const sidebarRole = document.getElementById('sidebarUserRole');
             if (sidebarName) sidebarName.textContent = u.full_name || u.username;
             if (sidebarRole) sidebarRole.textContent = u.role;
-            localStorage.setItem('hospital_user', JSON.stringify(u));
         }
 
         const envelope = await get('/meta');
         if (envelope.ok && envelope.data) {
             if (envelope.data.role) {
-                switchRole(envelope.data.role, false);
+                switchRole(envelope.data.role);
             }
         }
     } catch (e) {

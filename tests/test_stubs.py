@@ -83,26 +83,7 @@ ENDPOINTS = [
     ('GET', '/api/audit'),
     ('POST', '/api/audit/tamper-test'),
     
-    # Schema
-    ('GET', '/api/schema/overview'),
-    ('GET', '/api/schema/tables'),
-    ('GET', '/api/schema/tables/patient'),
-    ('GET', '/api/schema/relationships'),
-    ('GET', '/api/schema/constraints'),
-    ('GET', '/api/schema/indexes'),
-    ('GET', '/api/schema/triggers'),
-    ('GET', '/api/schema/functions'),
-    ('GET', '/api/schema/ddl'),
-    ('GET', '/api/schema/er'),
-    ('GET', '/api/schema/violations'),
-    ('POST', '/api/schema/violations/v01/run'),
-    ('POST', '/api/schema/triggers/trg_reduce_stock/demo'),
-    ('POST', '/api/sql'),
-    
-    # Demo
-    ('GET', '/api/demo/steps'),
-    ('GET', '/api/demo/state'),
-    ('POST', '/api/demo/T1.1/run'),
+
 ]
 
 
